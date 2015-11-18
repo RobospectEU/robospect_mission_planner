@@ -178,6 +178,10 @@ class MissionCommanderGUI(Plugin):
 		
 		# Vehicle
 		try:
+			self._widget.lineEdit_vehicle_state.setText(self._mission_state.vehicle_state.state)	# State
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
 			self._widget.lineEdit_base_x.setText('%.3f'%self._mission_state.vehicle_state.vehicle_x)	#X base
 		except AttributeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
