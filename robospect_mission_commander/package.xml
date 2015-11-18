@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package>
+  <name>robospect_mission_commander</name>
+  <version>0.1.0</version>
+  <description>The robospect_mission_commander package is intended to communicate and command the IGC(Intelligent Global Controller)</description>
+
+  
+  <maintainer email="rnavarro@robotnik.es">Román Navarro</maintainer>
+
+  <license>BSD</license>
+
+  <author email="rnavarro@robotnik.es">Román Navarro</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  
+  <run_depend>python-rospkg</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>roslib</run_depend>
+  <run_depend>rqt_gui</run_depend>
+  <run_depend>rqt_gui_py</run_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <architecture_independent/>
+    <rqt_gui plugin="${prefix}/plugin.xml"/>
+  </export>
+</package>

@@ -1,0 +1,12 @@
+<library path="src">
+  <class name="MissionCommanderGUI" type="robospect_mission_commander.rqt_mission_commander.MissionCommanderGUI" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A Python GUI plugin to command and monitor the ROBOSPECT platform
+    </description>
+    <qtgui>
+      <label>ROBOSPECT Mission Commander</label>
+      <icon type="theme">input-gaming</icon>
+      <statustip>A Python GUI plugin for ROBOSPECT</statustip>
+    </qtgui>
+  </class>
+</library>
