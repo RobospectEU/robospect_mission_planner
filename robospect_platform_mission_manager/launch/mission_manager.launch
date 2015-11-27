@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node pkg="robospect_platform_mission_manager" type="robospect_platform_mission_manager.py" name="robospect_platform_mission_manager" output="screen">
+    <rosparam command="load" file="$(find robospect_platform_mission_manager)/config/config.yaml"/>
+  </node>
+
+</launch>
