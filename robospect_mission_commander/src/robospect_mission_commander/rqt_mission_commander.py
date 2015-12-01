@@ -70,7 +70,10 @@ class MissionCommanderGUI(Plugin):
 		pixmap_green_file = os.path.join(rp.get_path('robospect_mission_commander'), 'resource', 'green.png')
 		self._pixmap_red = QPixmap(pixmap_red_file)
 		self._pixmap_green = QPixmap(pixmap_green_file)
-		#self._widget.qlabel_state_connection.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_platform_controller_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_platform_navigation_planner_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_platform_localization_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_platform_trajectory_planner_state.setPixmap(self._pixmap_red) # Shows connection  state
 					
 		if context.serial_number() > 1:
 			self._widget.setWindowTitle(self._widget.windowTitle() + (' (%d)' % context.serial_number()))		
@@ -164,11 +167,11 @@ class MissionCommanderGUI(Plugin):
 		
 		
 		# Updating Mission State
-		
 		try:
 			self._widget.lineEdit_mission_state.setText('%s'%self._mission_state.mission_state)
 		except AttributeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
 		
 		# Battery
 		try:
@@ -177,6 +180,11 @@ class MissionCommanderGUI(Plugin):
 			rospy.logerr('MissionCommanderGUI: %s'%e)
 		
 		# Vehicle
+		try:
+			self._widget.lineEdit_vehicle_command.setText('%s'%self._mission_state.vehicle_state.command) # command 
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
 		try:
 			self._widget.lineEdit_vehicle_state.setText(self._mission_state.vehicle_state.state)	# State
 		except AttributeError,e:
@@ -193,6 +201,11 @@ class MissionCommanderGUI(Plugin):
 			self._widget.lineEdit_base_theta.setText('%.3f'%self._mission_state.vehicle_state.vehicle_x)	#THETA base
 		except AttributeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_base_velocity.setText('%.1f,%.1f'%(self._mission_state.vehicle_state.vehicle_linear_speed, self._mission_state.vehicle_state.vehicle_angular_speed))	#linear speed
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
 		try:
 			self._widget.lineEdit_crane_x.setText('%.3f'%self._mission_state.vehicle_state.crane_x)	#X crane
 		except AttributeError,e:
@@ -222,7 +235,7 @@ class MissionCommanderGUI(Plugin):
 		except AttributeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
 		
-		if self._mission_state.vehicle_state.crane_joints == 7:
+		if len(self._mission_state.vehicle_state.crane_joints) == 7:
 			
 			try:
 				self._widget.lineEdit_crane_j1.setText('%.3f'%self._mission_state.vehicle_state.crane_joints[0])	#j1 crane
@@ -253,7 +266,7 @@ class MissionCommanderGUI(Plugin):
 			except AttributeError,e:
 				rospy.logerr('MissionCommanderGUI: %s'%e)
 		
-		
+			
 		
 			
 		"""# Checks the ROS connection
