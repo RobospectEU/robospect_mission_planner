@@ -209,7 +209,8 @@ class RobospectPlatformMissionManager:
 		self._linear_speed = 0.0
 		# Saves the state of the command execution
 		self.command_state = COMMAND_STATE_INIT
-		
+		# Flag active under requirement to cancel the current command
+		self._cancel_command = False
 		
 		
 		self._joints_dict = {}
@@ -529,12 +530,17 @@ class RobospectPlatformMissionManager:
 		
 		# Wait for the end
 		elif self.command_state == COMMAND_STATE_WAITING:
+			
 			if self._platform_current_command.command == COMMAND_ADVANCE:
 				action_state = self._base_move_client.getState()
 				
 				if action_state == GoalStatus.SUCCEEDED or action_state == GoalStatus.PREEMPTED or action_state == GoalStatus.ABORTED or action_state == GoalStatus.REJECTED or action_state == GoalStatus.LOST:	
 					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
 					self.command_state = COMMAND_STATE_ENDED
+				# Cancel requested
+				elif self._cancel_command:
+					rospy.loginfo('%s::readyState: cancelling command %s'%(self.node_name,self._platform_current_command.command))
+					self._base_move_client.cancel()
 			else:
 				rospy.loginfo('%s::readyState: command %s disabled'%(self.node_name,self._platform_current_command.command))
 				self.command_state = COMMAND_STATE_ENDED
@@ -660,13 +666,19 @@ class RobospectPlatformMissionManager:
 			# Checks if the command is correct
 			if not self._check_command(req.command):
 				return "ERROR_COMMAND"
-			# Adding new command
-			self._platform_commands.append(req.command)
-			self._platform_command_time = rospy.Time.now()
+			if req.command.command != COMMAND_CANCEL:
+				print req.command
+				# Adding new command
+				self._platform_commands.append(req.command)
+				self._platform_command_time = rospy.Time.now()
 		
 			return "OK"
 		else:
-			return "BUSY"
+			if req.command.command == COMMAND_CANCEL:
+				self._cancel_command = True
+				return "OK"
+			else:	
+				return "BUSY"
 		
 		# Confirms the command reception, sending it back
 		# self._platform_response_pub.publish(msg)
