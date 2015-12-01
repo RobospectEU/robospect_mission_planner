@@ -46,6 +46,12 @@ from sensor_msgs.msg import JointState
 from tf.transformations import euler_from_quaternion	
 from tf import TransformListener, Exception as tfException, ConnectivityException, LookupException, ExtrapolationException
 
+import actionlib
+from actionlib_msgs.msg import GoalStatus
+from robospect_planner.msg import goal, GoToGoal, GoToAction
+from geometry_msgs.msg import Pose2D
+
+
 DEFAULT_FREQ = 100.0
 MAX_FREQ = 500.0
 
@@ -53,7 +59,87 @@ MAX_FREQ = 500.0
 COMMAND_ADVANCE = 'advance'
 COMMAND_MOVE_CRANE = 'moveCrane'
 COMMAND_FOLD_CRANE = 'foldCrane'
+COMMAND_CANCEL = 'cancel'
+# State of the command execution
+COMMAND_STATE_INIT = 1
+COMMAND_STATE_WAITING = 2
+COMMAND_STATE_ENDED	= 3
+# 
+COMMAND_ADVANCE_SPEED = 0.4
+COMMAND_ADVANCE_MAX_SPEED = 0.5
 
+
+# Client based on ActionServer to send goals to the purepursuit node
+class PurePursuitClient():
+	
+	def __init__(self, planner_name):
+		self.planner_name = planner_name
+		# Creates the SimpleActionClient, passing the type of the action
+		# (GoTo) to the constructor.
+		self.client = actionlib.SimpleActionClient(planner_name, GoToAction)
+
+	## @brief Sends the goal to 
+	## @return 0 if OK, -1 if no server, -2 if it's tracking a goal at the moment
+	def goTo(self, goal_list):
+		# Waits until the action server has started up and started
+		# listening for goals.
+		if self.client.wait_for_server(timeout = rospy.Duration(3.0) ):
+			#if self.getState() != GoalStatus.LOST:
+			#	rospy.loginfo('PurepursuitClient: planner is tracking a goal')
+			#	return -2
+				
+			g = GoToGoal(target = goal_list)
+			rospy.loginfo('PurepursuitClient: Sendig %d waypoints'%(len(goal_list)))
+			self.client.send_goal(g)
+			return 0
+		else:
+			rospy.logerr('PurepursuitClient: Error waiting for server')
+			return -1
+	
+	## @brief cancel the current goal
+	def cancel(self):		
+		rospy.loginfo('PurepursuitClient: cancelling the goal')
+		self.client.cancel_goal()
+	
+	## @brief Get the state information for this goal
+    ##
+    ## Possible States Are: PENDING, ACTIVE, RECALLED, REJECTED,
+    ## PREEMPTED, ABORTED, SUCCEEDED, LOST.
+    ##
+    ## @return The goal's state. Returns LOST if this
+    ## SimpleActionClient isn't tracking a goal.
+	def getState(self):
+		return self.client.get_state()
+		
+	def getStateString(self):
+		state = self.client.get_state()
+		
+		if state == GoalStatus.PENDING:
+			return "PENDING"
+		elif state == GoalStatus.SUCCEEDED:
+			return "SUCCEEDED"
+		elif state == GoalStatus.ACTIVE:
+			return "ACTIVE"
+		elif state == GoalStatus.PREEMPTED:
+			return "PREEMPTED"
+		elif state == GoalStatus.ABORTED:
+			return "ABORTED"
+		elif state == GoalStatus.REJECTED:
+			return "REJECTED"
+		elif state == GoalStatus.LOST:
+			return "LOST"
+		else:
+			return "UNKNOWN"
+		
+	## @brief Returns ret if OK, otherwise -1
+	def getResult(self):
+		ret = self.client.get_result()
+		if not ret:
+			return -1
+		
+		else:
+			return ret
+			
 	
 # 
 class RobospectPlatformMissionManager:
@@ -77,6 +163,13 @@ class RobospectPlatformMissionManager:
 		self._tip_link = args['tip_link']
 		self._joint_linear_speed_name = args['joint_linear_speed']
 		self._publish_mission_state = args['publish_mission_state']
+		self._base_planner_name = args['base_planner_name']
+		self._command_advance_speed = abs(args['advance_speed'])
+		self._command_advance_max_speed = abs(args['advance_max_speed'])
+		self._relative_navigation = args['relative_navigation']
+		
+		if self._command_advance_speed > self._command_advance_max_speed:
+			self._command_advance_speed = self._command_advance_max_speed
 		
 		self.real_freq = 0.0
 		
@@ -114,6 +207,9 @@ class RobospectPlatformMissionManager:
 		self._robot_state_time = rospy.Time.now()
 		# Current linear speed
 		self._linear_speed = 0.0
+		# Saves the state of the command execution
+		self.command_state = COMMAND_STATE_INIT
+		
 		
 		
 		self._joints_dict = {}
@@ -166,6 +262,8 @@ class RobospectPlatformMissionManager:
 		# Service Clients
 		# self.service_client = rospy.ServiceProxy('service_name', ServiceMsg)
 		# ret = self.service_client.call(ServiceMsg)
+		# Simple Action Client
+		self._base_move_client = PurePursuitClient(self._base_planner_name)
 		
 		self.ros_initialized = True
 		
@@ -289,11 +387,11 @@ class RobospectPlatformMissionManager:
 		
 		return 0
 		
+	def _update_platform_state(self):
+		'''
+			Gathers and updates the platform data from different components
+		'''
 		
-	def rosPublish(self):
-		'''
-			Publish topics at standard frequency
-		'''
 		# Publish the current state of the platform
 		position = None
 		quaternion = None
@@ -316,14 +414,14 @@ class RobospectPlatformMissionManager:
 				
 				#print position, quaternion
 			except tfException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 			#Another exception when there is no transform
 			except ConnectivityException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 			except LookupException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 			except ExtrapolationException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 		#else:
 		#	rospy.logerr('%s::rosPublish: No transform between %s -> %s'%(self.node_name, self._tip_link, self._map_frame_id))
 		
@@ -339,14 +437,14 @@ class RobospectPlatformMissionManager:
 				
 				#print position, quaternion
 			except tfException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 			#Another exception when there is no transform
 			except ConnectivityException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 			except LookupException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 			except ExtrapolationException, e:
-				rospy.logerr('%s::rosPublish: %s'%(self.node_name, e))
+				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 		
 		self._platform_state.vehicle_linear_speed = self._linear_speed
 		self._platform_state.vehicle_angular_speed = self._odometry.twist.twist.angular.z
@@ -354,9 +452,16 @@ class RobospectPlatformMissionManager:
 		# state
 		self._platform_state.state = self.stateToString(self.state)
 		# Current command
-		self._platform_state.command = self._platform_current_command.command
-		#
+		self._platform_state.command = self._command_to_string(self._platform_current_command)
+		# battery (fake)
 		self._platform_state.battery_level = 75.0
+		
+		
+	def rosPublish(self):
+		'''
+			Publish topics at standard frequency
+		'''
+		
 				
 		self._platform_state_pub.publish(self._platform_state)
 		
@@ -404,14 +509,43 @@ class RobospectPlatformMissionManager:
 			Actions performed in ready state
 		'''
 		# Send Command to the robot
+		if self.command_state == COMMAND_STATE_INIT:
+			# Sends the command to the platform
+			if self._platform_current_command.command == COMMAND_ADVANCE:
+				goal_list = []
+				
+				if self._relative_navigation:
+					goal_list.append(goal(pose = Pose2D(self._platform_state.vehicle_x + self._platform_current_command.variables[0], self._platform_state.vehicle_y, 0.0), speed = self._command_advance_speed )) 
+				else:					
+					goal_list.append(goal(pose = Pose2D(self._platform_current_command.variables[0], 0.0, 0.0), speed = self._command_advance_speed )) 
+
+				if self._base_move_client.goTo(goal_list) == 0:
+					self.command_state = COMMAND_STATE_WAITING
+				else:
+					rospy.logerr('%s::readyState: Error sending command to the platfom')
+					self.command_state = COMMAND_STATE_ENDED
+			else:
+				self.command_state = COMMAND_STATE_ENDED
 		
 		# Wait for the end
+		elif self.command_state == COMMAND_STATE_WAITING:
+			if self._platform_current_command.command == COMMAND_ADVANCE:
+				action_state = self._base_move_client.getState()
+				
+				if action_state == GoalStatus.SUCCEEDED or action_state == GoalStatus.PREEMPTED or action_state == GoalStatus.ABORTED or action_state == GoalStatus.REJECTED or action_state == GoalStatus.LOST:	
+					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
+					self.command_state = COMMAND_STATE_ENDED
+			else:
+				rospy.loginfo('%s::readyState: command %s disabled'%(self.node_name,self._platform_current_command.command))
+				self.command_state = COMMAND_STATE_ENDED
+				
 		
-		# resests the command
-		self._platform_current_command.command = ''
-		self._platform_current_command.variables = []
-		
-		self.switchToState(State.STANDBY_STATE)
+		elif self.command_state == COMMAND_STATE_ENDED:
+			# resets the command
+			self._platform_current_command.command = ''
+			self._platform_current_command.variables = []
+			self.command_state = COMMAND_STATE_INIT
+			self.switchToState(State.STANDBY_STATE)
 		
 		
 		return
@@ -460,6 +594,15 @@ class RobospectPlatformMissionManager:
 		'''
 			Actions performed in all states
 		'''
+		# check the communication with all the components
+		# platform_controller?
+		# navigation_planner?
+		# trajectory_planner?
+		# localization node? map->odom transform?
+		
+		
+		self._update_platform_state()
+		
 		self.rosPublish()
 		
 		return
@@ -592,11 +735,23 @@ class RobospectPlatformMissionManager:
 			
 		elif command.command == COMMAND_FOLD_CRANE:
 			return True
+		elif command.command == COMMAND_CANCEL:
+			return True
 		else:
 			return False
 		
 		
+	def _command_to_string(self, command):
+		'''
+			Converts the command in a formatted string [command + variables]
+			@param command: Command to convert
+			@type command: robospect_msgs/PlatformCommand
+		'''
 		
+		if command.command == COMMAND_ADVANCE:
+			return '%s [%.2f m]'%(command.command, command.variables[0])
+		
+		return ""	
 		
 	"""
 	def serviceCb(self, req):
@@ -628,7 +783,11 @@ def main():
 	  'crane_joints': ['crane_first_joint','crane_second_joint'],
 	  'tip_link': '/tip_link',
 	  'joint_linear_speed': 'j9_velocity',
-	  'publish_mission_state': True
+	  'publish_mission_state': True,
+	  'base_planner_name': '/robospect_planner',
+	  'advance_speed': COMMAND_ADVANCE_SPEED,
+	  'advance_max_speed': COMMAND_ADVANCE_MAX_SPEED,
+	  'relative_navigation': True,
 	}
 	
 	args = {}
