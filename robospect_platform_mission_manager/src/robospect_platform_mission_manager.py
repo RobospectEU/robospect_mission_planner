@@ -34,12 +34,14 @@
 
 import rospy 
 
-import time, threading
+import time, threading, copy
 
 from robotnik_msgs.msg import State
 from std_msgs.msg import String
 from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState
 from robospect_msgs.srv import PlatformCommandSrv
+from robotnik_trajectory_planner.msg import CartesianEuler
+from robotnik_trajectory_planner.msg import State as TrajectoryPlannerState
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import JointState
 
@@ -49,7 +51,7 @@ from tf import TransformListener, Exception as tfException, ConnectivityExceptio
 import actionlib
 from actionlib_msgs.msg import GoalStatus
 from robospect_planner.msg import goal, GoToGoal, GoToAction
-from geometry_msgs.msg import Pose2D
+from geometry_msgs.msg import Pose2D, PointStamped, Point
 
 
 DEFAULT_FREQ = 100.0
@@ -59,6 +61,13 @@ MAX_FREQ = 500.0
 COMMAND_ADVANCE = 'advance'
 COMMAND_MOVE_CRANE = 'moveCrane'
 COMMAND_FOLD_CRANE = 'foldCrane'
+DONE_ADVANCE = 'doneAdvance'
+DONE_MOVE_CRANE = 'doneMoveCrane'
+DONE_FOLD_CRANE = 'doneFoldCrane'
+FAIL_ADVANCE = 'failAdvance'
+FAIL_MOVE_CRANE = 'failMoveCrane'
+FAIL_FOLD_CRANE = 'failFoldCrane'
+
 COMMAND_CANCEL = 'cancel'
 # State of the command execution
 COMMAND_STATE_INIT = 1
@@ -67,7 +76,12 @@ COMMAND_STATE_ENDED	= 3
 # 
 COMMAND_ADVANCE_SPEED = 0.4
 COMMAND_ADVANCE_MAX_SPEED = 0.5
-
+# offset applied to the crack position
+X_DEFAULT_OFFSET = 0.0
+Y_DEFAULT_OFFSET = -1.0
+Z_DEFAULT_OFFSET = -0.4
+# timeout in secs
+DEFAULT_COMMAND_TIMEOUT = 2.0
 
 # Client based on ActionServer to send goals to the purepursuit node
 class PurePursuitClient():
@@ -140,6 +154,67 @@ class PurePursuitClient():
 		else:
 			return ret
 			
+			
+# Client based on topics to send the trajectory commands
+class CartesianEurlerTrajectoryClient():
+	
+	
+	def __init__(self, planner_command_topic, planner_state_topic):
+		
+		self._planner_command_topic = planner_command_topic
+		self._planner_state_topic = planner_state_topic
+		
+		self._command_pub = rospy.Publisher(self._planner_command_topic, CartesianEuler, queue_size = 10)
+		self._state_sub = rospy.Subscriber(self._planner_state_topic, TrajectoryPlannerState, self._state_cb, queue_size = 10)
+	
+		self._state = TrajectoryPlannerState()
+		self._state_topic_timer = rospy.Time.now()
+		self._state_topic_timeout = 1.0
+		
+	def _state_cb(self, msg):
+		'''
+			Callback for TrajectoryPlannerState msg
+			@param msg: received message
+			@type msg: robotnik_trajectory_planner/State
+		'''
+		self._state_topic_timer = rospy.Time.now()
+		self._state = msg	
+	
+	def goTo(self, goal):
+		'''
+			@brief Sends the command to the component
+			@param goal as CartesianEuler
+			@return 0 if OK, -1 if no server, -2 if it's tracking a goal at the moment
+		'''
+		
+		self._command_pub.publish(goal)
+		
+		pass	
+	
+	def cancel(self):		
+		'''
+			@brief cancel the current goal
+		'''
+		pass
+	
+	def getState(self):	
+		return self._state
+		
+		
+	def getStateString(self):
+		
+		return self._state.state.state_description	
+	
+	def getResult(self):
+		'''
+			@brief Returns ret if OK, otherwise -1
+		'''
+		
+		return 0
+			
+
+
+
 	
 # 
 class RobospectPlatformMissionManager:
@@ -160,13 +235,24 @@ class RobospectPlatformMissionManager:
 		self._odom_topic = args['odom_topic']
 		self._robot_state_topic = args['robot_state_topic']
 		self._crane_joints = args['crane_joints']
-		self._tip_link = args['tip_link']
+		self._crane_tip_frame_id = args['crane_tip_frame_id']
+		self._arm_frame_id = args['arm_frame_id']
+		self._camera_frame_id = args['camera_frame_id']
 		self._joint_linear_speed_name = args['joint_linear_speed']
 		self._publish_mission_state = args['publish_mission_state']
 		self._base_planner_name = args['base_planner_name']
 		self._command_advance_speed = abs(args['advance_speed'])
 		self._command_advance_max_speed = abs(args['advance_max_speed'])
 		self._relative_navigation = args['relative_navigation']
+		self._trajectory_planner_command_topic = args['trajectory_planner_command_topic']
+		self._trajectory_planner_state_topic = args['trajectory_planner_state_topic']
+		self._point_offset = Point()
+		self._point_offset.x = X_DEFAULT_OFFSET
+		self._point_offset.y = Y_DEFAULT_OFFSET
+		self._point_offset.z = Z_DEFAULT_OFFSET
+		self._crack_frame_id = args['crack_frame_id']
+		self._crack_approach_arm_frame_id = args['crack_approach_arm_frame_id']
+		self._crack_approach_crane_frame_id = args['crack_approach_crane_frame_id']
 		
 		if self._command_advance_speed > self._command_advance_max_speed:
 			self._command_advance_speed = self._command_advance_max_speed
@@ -191,7 +277,7 @@ class RobospectPlatformMissionManager:
 		self.publish_state_timer = 1
 		
 		self._platform_state = PlatformState()
-		# Saves the last command (and time) received
+		# Saves the last platform command (and time) received
 		self._platform_command_time = rospy.Time.now()
 		self._platform_commands = []
 		# Current command being executed
@@ -219,9 +305,13 @@ class RobospectPlatformMissionManager:
 			# Only saves the position
 			self._joints_dict[i] = 0.0
 		
-		self.tf = TransformListener()
+		self._transform_listener = TransformListener()
 		
 		self.t_publish_state = threading.Timer(self.publish_state_timer, self.publishROSstate)
+		# Timeout applied when executing an action
+		self._command_timeout = DEFAULT_COMMAND_TIMEOUT
+		# Saves the time when an action has been sent to every component
+		self._command_init_time = None
 		
 			
 	def setup(self):
@@ -249,7 +339,19 @@ class RobospectPlatformMissionManager:
 			self._mission_state = MissionState()
 			self._mission_state.vehicle_state = self._platform_state
 			self._mission_state.mission_state = 'IDLE'
-			
+		#publishes the crack to reach
+		self._crack_publisher = rospy.Publisher('~crack', PointStamped, queue_size=10)
+		self._crack_approach_arm_publisher = rospy.Publisher('~crack_approach_arm', PointStamped, queue_size=10)
+		self._crack_approach_crane_publisher = rospy.Publisher('~crack_approach_crane', PointStamped, queue_size=10)
+		
+		self._crack_point = PointStamped()
+		self._crack_approach_arm_point = PointStamped()
+		self._crack_approach_crane_point = PointStamped()
+		self._crack_point.header.frame_id = self._crack_frame_id
+		self._crack_approach_arm_point.header.frame_id = self._crack_approach_arm_frame_id
+		self._crack_approach_crane_point.header.frame_id = self._crack_approach_crane_frame_id
+		
+		
 		# Subscribers
 		# topic_name, msg type, callback, queue_size
 		#self._platform_command_sub = rospy.Subscriber('/platform_command', PlatformCommand, self._platform_command_cb, queue_size = 10)
@@ -265,6 +367,10 @@ class RobospectPlatformMissionManager:
 		# ret = self.service_client.call(ServiceMsg)
 		# Simple Action Client
 		self._base_move_client = PurePursuitClient(self._base_planner_name)
+		
+		# interface to communicate with the Crane
+		self._crane_move_client = CartesianEurlerTrajectoryClient(planner_command_topic = self._trajectory_planner_command_topic, planner_state_topic = self._trajectory_planner_state_topic)
+		
 		
 		self.ros_initialized = True
 		
@@ -400,11 +506,11 @@ class RobospectPlatformMissionManager:
 		self._platform_state.crane_joints = [self._joints_dict[self._crane_joints[0]], self._joints_dict[self._crane_joints[1]], self._joints_dict[self._crane_joints[2]], self._joints_dict[self._crane_joints[3]], self._joints_dict[self._crane_joints[4]],
 		self._joints_dict[self._crane_joints[5]], self._joints_dict[self._crane_joints[6]]]
 		# Updates transform from crane_tip to map
-		if self.tf.frameExists(self._tip_link) and self.tf.frameExists(self._map_frame_id):
+		if self._transform_listener.frameExists(self._crane_tip_frame_id) and self._transform_listener.frameExists(self._map_frame_id):
 			
 			try:
-				t = self.tf.getLatestCommonTime(self._map_frame_id, self._tip_link)
-				position, quaternion = self.tf.lookupTransform(self._map_frame_id, self._tip_link, t)
+				t = self._transform_listener.getLatestCommonTime(self._map_frame_id, self._crane_tip_frame_id)
+				position, quaternion = self._transform_listener.lookupTransform(self._map_frame_id, self._crane_tip_frame_id, t)
 				self._platform_state.crane_x = position[0]
 				self._platform_state.crane_y = position[1]
 				self._platform_state.crane_z = position[2]
@@ -424,13 +530,13 @@ class RobospectPlatformMissionManager:
 			except ExtrapolationException, e:
 				rospy.logerr('%s::_update_platform_state: %s'%(self.node_name, e))
 		#else:
-		#	rospy.logerr('%s::rosPublish: No transform between %s -> %s'%(self.node_name, self._tip_link, self._map_frame_id))
+		#	rospy.logerr('%s::rosPublish: No transform between %s -> %s'%(self.node_name, self._crane_tip_frame_id, self._map_frame_id))
 		
 		# Vehicle position & speed
-		if self.tf.frameExists(self._base_frame_id) and self.tf.frameExists(self._map_frame_id):
+		if self._transform_listener.frameExists(self._base_frame_id) and self._transform_listener.frameExists(self._map_frame_id):
 			try:
-				t = self.tf.getLatestCommonTime(self._map_frame_id, self._base_frame_id)
-				position, quaternion = self.tf.lookupTransform(self._map_frame_id, self._base_frame_id, t)
+				t = self._transform_listener.getLatestCommonTime(self._map_frame_id, self._base_frame_id)
+				position, quaternion = self._transform_listener.lookupTransform(self._map_frame_id, self._base_frame_id, t)
 				self._platform_state.vehicle_x = position[0]
 				self._platform_state.vehicle_y = position[1]
 				(roll, pitch, yaw) = euler_from_quaternion(quaternion)
@@ -456,7 +562,52 @@ class RobospectPlatformMissionManager:
 		self._platform_state.command = self._command_to_string(self._platform_current_command)
 		# battery (fake)
 		self._platform_state.battery_level = 75.0
+	
+	
+	def _transform_point_to_frame(self, point, frame_id, offset = Point()):
+		'''
+			Transforms a point into the desired frame
+			@param point as geometry_msg/PointStamped, point to transform
+			@param point as geometry_msg/Point, offset applied to the point before transforming
+			@param frame_id as string
+			@return 0, PointStamped if OK or -1,PointStamped otherwise
+		'''
+		if not self._transform_listener.frameExists(frame_id):
+			rospy.logerr('%s:_transform_point_to_frame: frame %s does not exist',self.node_name, frame_id)
+			return -1, point
+			
+		if not self._transform_listener.frameExists(point.header.frame_id):
+			rospy.logerr('%s:_transform_point_to_frame: frame %s does not exist',self.node_name, point.header.frame_id)
+			return -1, point
+			
+		point.header.stamp = rospy.Time.now() - rospy.Time(1)
+		#point.header.stamp = rospy.Time.now() - rospy.Time.from_sec(0.5)
 		
+		try:
+			
+			point.point.x += (offset.x)
+			point.point.y += (offset.y)
+			point.point.z += (offset.z)
+			#print 'point after offset'
+			#print point
+			new_point = self._transform_listener.transformPoint(frame_id, point)
+			rospy.loginfo('%s:_transform_point_to_frame: point transformed from frame %s to frame %s', self.node_name,point.header.frame_id, frame_id)
+			#print new_point
+			
+			return 0, new_point
+			
+		except tfException, e:
+			rospy.logerr('%s::_transform_point_to_frame: %s'%(self.node_name, e))
+		#Another exception when there is no transform
+		except ConnectivityException, e:
+			rospy.logerr('%s::_transform_point_to_frame: %s'%(self.node_name, e))
+		except LookupException, e:
+			rospy.logerr('%s::_transform_point_to_frame: %s'%(self.node_name, e))
+		except ExtrapolationException, e:
+			rospy.logerr('%s::_transform_point_to_frame: %s'%(self.node_name, e))
+		
+		return -1, point	
+	
 		
 	def rosPublish(self):
 		'''
@@ -470,6 +621,16 @@ class RobospectPlatformMissionManager:
 		# Publish mission state for testing the GCS
 		if self._publish_mission_state:
 			self._mission_state_pub.publish(self._mission_state)
+		
+		t_now = rospy.Time.now()
+		
+		self._crack_point.header.stamp = t_now
+		self._crack_approach_arm_point.header.stamp = t_now
+		self._crack_approach_crane_point.header.stamp = t_now
+		
+		self._crack_publisher.publish(self._crack_point)
+		self._crack_approach_arm_publisher.publish(self._crack_approach_arm_point)
+		self._crack_approach_crane_publisher.publish(self._crack_approach_crane_point)
 					
 		return 0
 		
@@ -500,7 +661,6 @@ class RobospectPlatformMissionManager:
 			self._platform_commands.remove(self._platform_current_command)
 			rospy.loginfo('%s:standbyState: New command %s. going to READY', self.node_name, self._platform_current_command.command )
 			self.switchToState(State.READY_STATE)
-			
 		
 		return
 	
@@ -512,6 +672,7 @@ class RobospectPlatformMissionManager:
 		# Send Command to the robot
 		if self.command_state == COMMAND_STATE_INIT:
 			# Sends the command to the platform
+			# ADVANCE
 			if self._platform_current_command.command == COMMAND_ADVANCE:
 				goal_list = []
 				
@@ -521,10 +682,96 @@ class RobospectPlatformMissionManager:
 					goal_list.append(goal(pose = Pose2D(self._platform_current_command.variables[0], 0.0, 0.0), speed = self._command_advance_speed )) 
 
 				if self._base_move_client.goTo(goal_list) == 0:
+					self._command_init_time = rospy.Time.now()
 					self.command_state = COMMAND_STATE_WAITING
 				else:
-					rospy.logerr('%s::readyState: Error sending command to the platfom')
+					rospy.logerr('%s::readyState: Error sending command to the platfom', self.node_name)
 					self.command_state = COMMAND_STATE_ENDED
+			
+			# MOVE CRANE
+			elif self._platform_current_command.command == COMMAND_MOVE_CRANE:
+				traj_planner_state = self._crane_move_client.getState()
+				
+				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+					rospy.loginfo('%s::readyState: New trajectory command %s to (%lf, %lf, %lf)', self.node_name, self._platform_current_command.command, self._platform_current_command.variables[0], self._platform_current_command.variables[1], self._platform_current_command.variables[2])
+					# Tries to transform the crack point from arm_link to tip_link
+					crack_point = PointStamped()
+					crack_approach_arm_point = PointStamped()
+					crack_approach_crane_point = PointStamped()
+					
+					crack_point.point.x = self._platform_current_command.variables[0]
+					crack_point.point.y = self._platform_current_command.variables[1]
+					crack_point.point.z = self._platform_current_command.variables[2]
+					crack_point.header.frame_id = self._camera_frame_id
+					
+					
+					# Receives coordinates based on camera frame
+					# Transform the point into arm_base_link
+					ret, crack_approach_arm_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._arm_frame_id)
+					
+					if ret:
+						rospy.logerr('%s::readyState: error transforming crack point', self.node_name)
+						return
+					
+					# Applies offset to enable the arm operation close to the crack
+					crack_approach_arm_point.point.x += self._point_offset.x
+					crack_approach_arm_point.point.y += self._point_offset.y
+					crack_approach_arm_point.point.z += self._point_offset.z
+					
+					
+					try:
+						t = self._transform_listener.getLatestCommonTime(self._arm_frame_id, self._crane_tip_frame_id)
+						position, quaternion = self._transform_listener.lookupTransform(self._arm_frame_id, self._crane_tip_frame_id, t)
+						
+						# Applies the transformation between arm_base_link and crane_tip_link
+						crack_approach_crane_point.point.x = crack_approach_arm_point.point.x + position[0]
+						crack_approach_crane_point.point.y = crack_approach_arm_point.point.y + position[1]
+						crack_approach_crane_point.point.z = crack_approach_arm_point.point.z + position[2]
+						crack_approach_crane_point.header.frame_id = self._arm_frame_id
+							
+					except (tfException, ConnectivityException, LookupException, ExtrapolationException) as e:
+						rospy.logerr('%s::readyState: %s'%(self.node_name, e))
+						return 
+					
+					
+					# transform the point into crane coordinates, ready to send to the controller
+					ret, crack_approach_crane_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_crane_point), frame_id = self._crane_tip_frame_id)
+					
+					if ret:
+						rospy.logerr('%s::readyState: error transforming crack point', self.node_name)
+						return
+					
+					# Publish the points related to base frame
+					ret, self._crack_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._base_frame_id) 
+					ret, self._crack_approach_arm_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_arm_point), frame_id = self._base_frame_id)  
+					ret, self._crack_approach_crane_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_crane_point), frame_id = self._base_frame_id)  
+					
+					#print 'Move the crane to (%lf, %lf, %lf)'%(crack_approach_crane_point.point.x, crack_approach_crane_point.point.y, crack_approach_crane_point.point.z) 
+					
+					# Sends the command to the crane 
+					msg = CartesianEuler()
+					msg.x = crack_approach_crane_point.point.x
+					msg.y = crack_approach_crane_point.point.y
+					msg.z = crack_approach_crane_point.point.z
+					msg.roll = msg.pitch = msg.yaw = 0.0
+					self._crane_move_client.goTo(msg)
+					self._command_init_time = rospy.Time.now()
+					# Give some time to activate the service
+					rospy.sleep(1)
+					self.command_state = COMMAND_STATE_WAITING
+				else:
+					self.command_state = COMMAND_STATE_ENDED
+					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
+					self._platform_current_command.command = FAIL_MOVE_CRANE
+					
+			elif self._platform_current_command.command == COMMAND_FOLD_CRANE:
+				# TODO
+				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+					rospy.loginfo('%s::readyState: New trajectory command %s', self.node_name, self._platform_current_command.command)
+					self.command_state = COMMAND_STATE_WAITING
+				else:
+					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
+			
 			else:
 				self.command_state = COMMAND_STATE_ENDED
 		
@@ -537,18 +784,44 @@ class RobospectPlatformMissionManager:
 				if action_state == GoalStatus.SUCCEEDED or action_state == GoalStatus.PREEMPTED or action_state == GoalStatus.ABORTED or action_state == GoalStatus.REJECTED or action_state == GoalStatus.LOST:	
 					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
 					self.command_state = COMMAND_STATE_ENDED
+					self._platform_current_command.command = DONE_ADVANCE
 				# Cancel requested
 				elif self._cancel_command:
 					rospy.loginfo('%s::readyState: cancelling command %s'%(self.node_name,self._platform_current_command.command))
 					self._base_move_client.cancel()
+					self.command_state = COMMAND_STATE_ENDED
+					self._platform_current_command.command = FAIL_ADVANCE
+					
+				
+			# MOVE CRANE
+			elif self._platform_current_command.command == COMMAND_MOVE_CRANE:
+				
+				traj_planner_state = self._crane_move_client.getState()
+				
+				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+					self.command_state = COMMAND_STATE_ENDED
+					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
+					self._platform_current_command.command = DONE_MOVE_CRANE
+				else:
+					t_diff = (rospy.Time.now() - self._command_init_time).to_sec()  
+					if t_diff > self._command_timeout:
+						rospy.loginfo('%s::readyState: Timeout (%d secs) in command %s'%(self.node_name, t_diff, self._platform_current_command.command))
+						self._crane_move_client.cancel()
+						self.command_state = COMMAND_STATE_ENDED
+						self._platform_current_command.command = FAIL_MOVE_CRANE
+						
+			# FOLD CRANE
+			elif self._platform_current_command.command == COMMAND_FOLD_CRANE:
+				rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
+				self.command_state = COMMAND_STATE_ENDED
+				self._platform_current_command.command = DONE_MOVE_CRANE
 			else:
 				rospy.loginfo('%s::readyState: command %s disabled'%(self.node_name,self._platform_current_command.command))
 				self.command_state = COMMAND_STATE_ENDED
+				self._platform_current_command.command = ''
 				
 		
 		elif self.command_state == COMMAND_STATE_ENDED:
-			# resets the command
-			self._platform_current_command.command = ''
 			self._platform_current_command.variables = []
 			self.command_state = COMMAND_STATE_INIT
 			self.switchToState(State.STANDBY_STATE)
@@ -762,6 +1035,18 @@ class RobospectPlatformMissionManager:
 		
 		if command.command == COMMAND_ADVANCE:
 			return '%s [%.2f m]'%(command.command, command.variables[0])
+			
+		if command.command == DONE_ADVANCE or command.command == FAIL_ADVANCE:
+			return '%s'%(command.command)
+		
+		elif command.command == COMMAND_MOVE_CRANE:
+			return '%s [%.2f %.2f %2f]'%(command.command, command.variables[0], command.variables[1], command.variables[2])
+			
+		elif command.command == DONE_MOVE_CRANE or command.command == FAIL_MOVE_CRANE:
+			return '%s'%(command.command)
+			
+		elif command.command == COMMAND_FOLD_CRANE or command.command == DONE_FOLD_CRANE or command.command == FAIL_FOLD_CRANE:
+			return command.command
 		
 		return ""	
 		
@@ -793,13 +1078,20 @@ def main():
 	  'odom_topic': '/odom',
 	  'robot_state_topic': '/robospect_platform_controller/state',
 	  'crane_joints': ['crane_first_joint','crane_second_joint'],
-	  'tip_link': '/tip_link',
+	  'crane_tip_frame_id': '/tip_link',
+	  'arm_frame_id': '/arm_link',
+	  'camera_frame_id': '/grasshopper3_left_camera_lens_link',
 	  'joint_linear_speed': 'j9_velocity',
 	  'publish_mission_state': True,
 	  'base_planner_name': '/robospect_planner',
 	  'advance_speed': COMMAND_ADVANCE_SPEED,
 	  'advance_max_speed': COMMAND_ADVANCE_MAX_SPEED,
 	  'relative_navigation': True,
+	  'trajectory_planner_state_topic': '/rt_traj_planner/state',
+	  'trajectory_planner_command_topic': '/rt_traj_planner/commands/cartesian_euler',
+	  'crack_approach_arm_frame_id': '/arm_link',
+	  'crack_approach_crane_frame_id': '/tip_link',
+	  'crack_frame_id': '/map',
 	}
 	
 	args = {}
