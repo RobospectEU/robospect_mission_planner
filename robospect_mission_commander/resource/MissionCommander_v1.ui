@@ -55,8 +55,8 @@
   <widget class="QLineEdit" name="lineEdit_command">
    <property name="geometry">
     <rect>
-     <x>120</x>
-     <y>20</y>
+     <x>130</x>
+     <y>140</y>
      <width>151</width>
      <height>27</height>
     </rect>
@@ -567,12 +567,12 @@
         <rect>
          <x>300</x>
          <y>90</y>
-         <width>16</width>
+         <width>21</width>
          <height>17</height>
         </rect>
        </property>
        <property name="text">
-        <string>j7</string>
+        <string>tip</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_24">
@@ -847,6 +847,26 @@ Command</string>
      </attribute>
     </widget>
    </widget>
+   <widget class="QLabel" name="label_mission_state">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>30</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Mission</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QLabel" name="label_7">
    <property name="geometry">
@@ -872,6 +892,16 @@ Command</string>
    </property>
    <property name="value">
     <number>24</number>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBox_command">
+   <property name="geometry">
+    <rect>
+     <x>120</x>
+     <y>20</y>
+     <width>161</width>
+     <height>27</height>
+    </rect>
    </property>
   </widget>
  </widget>
