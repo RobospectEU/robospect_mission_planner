@@ -17,13 +17,13 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>130</y>
-     <width>98</width>
-     <height>27</height>
+     <y>150</y>
+     <width>271</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="text">
-    <string>Send</string>
+    <string>Send Mission</string>
    </property>
   </widget>
   <widget class="QLabel" name="label">
@@ -50,16 +50,6 @@
    </property>
    <property name="text">
     <string>Parameter</string>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="lineEdit_command">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>140</y>
-     <width>151</width>
-     <height>27</height>
-    </rect>
    </property>
   </widget>
   <widget class="QLineEdit" name="lineEdit_parameter">
@@ -902,6 +892,35 @@ Command</string>
      <width>161</width>
      <height>27</height>
     </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_23">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>100</y>
+     <width>81</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Waypoints</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_waypoints">
+   <property name="geometry">
+    <rect>
+     <x>120</x>
+     <y>100</y>
+     <width>101</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>0</string>
+   </property>
+   <property name="readOnly">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>

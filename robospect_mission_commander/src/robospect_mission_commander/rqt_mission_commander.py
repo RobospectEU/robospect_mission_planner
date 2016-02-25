@@ -55,9 +55,11 @@ from tf import TransformListener, Exception as tfException, ConnectivityExceptio
 
 from rospy.exceptions import ROSException
 
+from waypoints_marker import *
+
 TIMEOUT_SERVICE = 2.0
 TIMEOUT_TOPIC = 2.0
-mission_commands = ['cracks', 'distance', 'threshold', 'stop']
+mission_commands = ['cracks', 'distance', 'threshold', 'stop', 'waypoints']
 
 
 class MissionCommanderGUI(Plugin):
@@ -110,7 +112,7 @@ class MissionCommanderGUI(Plugin):
 		self._update_timer_interface = 200 # Frequency to update values in the interface (ms)
 		
 		
-		
+		self.waypoints_markers = PointPathManager('mission_waypoints', frame_id = '/map')
 		
 		
 		self._init_timers()
@@ -186,33 +188,28 @@ class MissionCommanderGUI(Plugin):
 		except ValueError, e:
 			rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
 			QMessageBox.warning(self._widget, 'Error', 'Incorrect format of the parameter. A number is expected')
-			
-		try:
-			ret = self._command_service_client.wait_for_service(TIMEOUT_SERVICE)
+					
+		srv = MissionCommandSrv()
 		
-		except rospy.ROSInterruptException,e:
-			rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
-			QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
-			return
-		except rospy.ROSException,e:
-			rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
-			QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
-			return
-	
-		if not ret:
-			rospy.logerr('MissionCommanderGUI:_send_command_cb: error waiting for service %s', self._command_service)
-		else:
+		if msg.command == 'waypoints':
+			waypoints = self.waypoints_markers.getMissionPoints()
 			
-			srv = MissionCommandSrv()
-			srv.req.command = msg
-			try:
-				self._command_service_client(srv)
-			except rospy.ROSInterruptException,e: 
-				rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
-				QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
-			except rospy.ServiceException,e: 
-				rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
-				QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+			if len(waypoints) == 0:
+				QMessageBox.warning(self._widget, 'Error', 'No waypoints to send')
+				return
+			
+			msg.points = waypoints
+		
+		#srv.command = msg
+		
+		try:
+			self._command_service_client(msg)
+		except rospy.ROSInterruptException,e: 
+			rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
+			QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+		except rospy.ServiceException,e: 
+			rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
+			QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
 				
 	
 	def shutdown_plugin(self):
@@ -277,10 +274,20 @@ class MissionCommanderGUI(Plugin):
 		
 		
 		# Updating Mission State
+		
 		try:
 			self._widget.lineEdit_mission_state.setText('%s'%self._components_state['mission_state']['state'].mission_state)
 		except AttributeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
+		
+		# Mission waypoints
+		try:
+			self._widget.lineEdit_waypoints.setText('%d'%self.waypoints_markers.getSizeMissionPoints())
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
+		self.waypoints_markers.updateMarkers()
 		
 		
 		# Battery
