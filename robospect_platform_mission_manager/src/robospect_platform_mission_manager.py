@@ -40,7 +40,7 @@ from robotnik_msgs.msg import State
 from std_msgs.msg import String
 from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState
 from robospect_msgs.srv import PlatformCommandSrv
-from robotnik_trajectory_planner.msg import CartesianEuler
+from robotnik_trajectory_planner.msg import CartesianEuler, JointByJoint
 from robotnik_trajectory_planner.msg import State as TrajectoryPlannerState
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import JointState
@@ -81,7 +81,7 @@ X_DEFAULT_OFFSET = 0.0
 Y_DEFAULT_OFFSET = -1.0
 Z_DEFAULT_OFFSET = -0.4
 # timeout in secs
-DEFAULT_COMMAND_TIMEOUT = 2.0
+DEFAULT_COMMAND_TIMEOUT = 120.0
 
 # Client based on ActionServer to send goals to the purepursuit node
 class PurePursuitClient():
@@ -155,16 +155,18 @@ class PurePursuitClient():
 			return ret
 			
 			
-# Client based on topics to send the trajectory commands
-class CartesianEurlerTrajectoryClient():
+# Client based on topics to send the Cartesian-Euler trajectory commands
+class CraneTrajectoryClient():
 	
 	
-	def __init__(self, planner_command_topic, planner_state_topic):
+	def __init__(self, planner_cartesian_command_topic, planner_joint_command_topic, planner_state_topic):
 		
-		self._planner_command_topic = planner_command_topic
+		self._planner_cartesian_command_topic = planner_cartesian_command_topic
+		self._planner_joint_command_topic = planner_joint_command_topic
 		self._planner_state_topic = planner_state_topic
 		
-		self._command_pub = rospy.Publisher(self._planner_command_topic, CartesianEuler, queue_size = 10)
+		self._cartesian_command_pub = rospy.Publisher(self._planner_cartesian_command_topic, CartesianEuler, queue_size = 10)
+		self._joint_command_pub = rospy.Publisher(self._planner_joint_command_topic, JointByJoint, queue_size = 10)
 		self._state_sub = rospy.Subscriber(self._planner_state_topic, TrajectoryPlannerState, self._state_cb, queue_size = 10)
 	
 		self._state = TrajectoryPlannerState()
@@ -183,14 +185,17 @@ class CartesianEurlerTrajectoryClient():
 	def goTo(self, goal):
 		'''
 			@brief Sends the command to the component
-			@param goal as CartesianEuler
+			@param goal as CartesianEuler or JointByJoint
 			@return 0 if OK, -1 if no server, -2 if it's tracking a goal at the moment
 		'''
+		if isinstance(goal, CartesianEuler):
+			self._cartesian_command_pub.publish(goal)
+			return 0
+		elif isinstance(goal, JointByJoint):
+			self._joint_command_pub.publish(goal)
+			return 0
+		return -1
 		
-		self._command_pub.publish(goal)
-		
-		pass	
-	
 	def cancel(self):		
 		'''
 			@brief cancel the current goal
@@ -211,7 +216,17 @@ class CartesianEurlerTrajectoryClient():
 		'''
 		
 		return 0
-			
+		
+	def foldCrane(self):
+		'''
+			@brief sends the command to move the crane to home position
+		'''
+		msg = JointByJoint()
+		msg.joints = ['crane_first_joint', 'crane_second_joint', 'crane_third_joint', 'crane_fourth_joint', 'crane_fifth_joint', 'crane_sixth_joint']
+		msg.values = [0.0, 0.2, 0.04, 0.2, -1.24, 0.0]
+		msg.relative = False
+		
+		return self.goTo(msg)
 
 
 
@@ -244,7 +259,8 @@ class RobospectPlatformMissionManager:
 		self._command_advance_speed = abs(args['advance_speed'])
 		self._command_advance_max_speed = abs(args['advance_max_speed'])
 		self._relative_navigation = args['relative_navigation']
-		self._trajectory_planner_command_topic = args['trajectory_planner_command_topic']
+		self._trajectory_planner_cartesian_command_topic = args['trajectory_planner_cartesian_command_topic']
+		self._trajectory_planner_joint_command_topic = args['trajectory_planner_joint_command_topic']
 		self._trajectory_planner_state_topic = args['trajectory_planner_state_topic']
 		self._point_offset = Point()
 		self._point_offset.x = X_DEFAULT_OFFSET
@@ -369,7 +385,8 @@ class RobospectPlatformMissionManager:
 		self._base_move_client = PurePursuitClient(self._base_planner_name)
 		
 		# interface to communicate with the Crane
-		self._crane_move_client = CartesianEurlerTrajectoryClient(planner_command_topic = self._trajectory_planner_command_topic, planner_state_topic = self._trajectory_planner_state_topic)
+		self._crane_move_client = CraneTrajectoryClient(planner_cartesian_command_topic = self._trajectory_planner_cartesian_command_topic, 
+			planner_joint_command_topic = self._trajectory_planner_joint_command_topic, planner_state_topic = self._trajectory_planner_state_topic)
 		
 		
 		self.ros_initialized = True
@@ -763,11 +780,18 @@ class RobospectPlatformMissionManager:
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
 					self._platform_current_command.command = FAIL_MOVE_CRANE
-					
+			
+			
+			# FOLD CRANE		
 			elif self._platform_current_command.command == COMMAND_FOLD_CRANE:
+				traj_planner_state = self._crane_move_client.getState()
+				
 				# TODO
 				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+					self._crane_move_client.foldCrane()
+					self._command_init_time = rospy.Time.now()
 					rospy.loginfo('%s::readyState: New trajectory command %s', self.node_name, self._platform_current_command.command)
+					rospy.sleep(1)
 					self.command_state = COMMAND_STATE_WAITING
 				else:
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
@@ -812,9 +836,19 @@ class RobospectPlatformMissionManager:
 						
 			# FOLD CRANE
 			elif self._platform_current_command.command == COMMAND_FOLD_CRANE:
-				rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
-				self.command_state = COMMAND_STATE_ENDED
-				self._platform_current_command.command = DONE_MOVE_CRANE
+				traj_planner_state = self._crane_move_client.getState()
+				
+				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+					self.command_state = COMMAND_STATE_ENDED
+					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
+					self._platform_current_command.command = DONE_FOLD_CRANE
+				else:
+					t_diff = (rospy.Time.now() - self._command_init_time).to_sec()  
+					if t_diff > self._command_timeout:
+						rospy.loginfo('%s::readyState: Timeout (%d secs) in command %s'%(self.node_name, t_diff, self._platform_current_command.command))
+						self._crane_move_client.cancel()
+						self.command_state = COMMAND_STATE_ENDED
+						self._platform_current_command.command = FAIL_FOLD_CRANE
 			else:
 				rospy.loginfo('%s::readyState: command %s disabled'%(self.node_name,self._platform_current_command.command))
 				self.command_state = COMMAND_STATE_ENDED
@@ -1088,7 +1122,8 @@ def main():
 	  'advance_max_speed': COMMAND_ADVANCE_MAX_SPEED,
 	  'relative_navigation': True,
 	  'trajectory_planner_state_topic': '/rt_traj_planner/state',
-	  'trajectory_planner_command_topic': '/rt_traj_planner/commands/cartesian_euler',
+	  'trajectory_planner_cartesian_command_topic': '/rt_traj_planner/commands/cartesian_euler',
+	  'trajectory_planner_joint_command_topic': '/rt_traj_planner/commands/joint_by_joint',
 	  'crack_approach_arm_frame_id': '/arm_link',
 	  'crack_approach_crane_frame_id': '/tip_link',
 	  'crack_frame_id': '/map',
