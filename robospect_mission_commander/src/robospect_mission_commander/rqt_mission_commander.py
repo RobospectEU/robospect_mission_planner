@@ -384,6 +384,131 @@ class MissionCommanderGUI(Plugin):
 				rospy.logerr('MissionCommanderGUI: %s'%e)
 		
 		
+		# Arm
+		try:
+			self._widget.lineEdit_arm_state.setText(self._components_state['mission_state']['state'].arm_state)	# State
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_arm_x.setText('%.3f'%self._components_state['mission_state']['state'].tip_x)	# arm tip X
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_arm_y.setText('%.3f'%self._components_state['mission_state']['state'].tip_y)	# arm tip Y
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_arm_z.setText('%.3f'%self._components_state['mission_state']['state'].tip_z)	# arm tip Z
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_arm_q1.setText('%.3f'%self._components_state['mission_state']['state'].tip_q1)	# arm tip q1
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_arm_q2.setText('%.3f'%self._components_state['mission_state']['state'].tip_q2)	# arm tip q2
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_arm_q3.setText('%.3f'%self._components_state['mission_state']['state'].tip_q3)	# arm tip q3
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_arm_q4.setText('%.3f'%self._components_state['mission_state']['state'].tip_q4)	# arm tip q4
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
+		if len(self._components_state['mission_state']['state'].arm_joints) == 6:
+			
+			try:
+				self._widget.lineEdit_arm_j1.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[0])	#j1 arm
+			except AttributeError,e:
+				rospy.logerr('MissionCommanderGUI: %s'%e)
+			try:
+				self._widget.lineEdit_arm_j2.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[1])	#j2 arm
+			except AttributeError,e:
+				rospy.logerr('MissionCommanderGUI: %s'%e)
+			try:
+				self._widget.lineEdit_arm_j3.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[2])	#j3 arm
+			except AttributeError,e:
+				rospy.logerr('MissionCommanderGUI: %s'%e)
+			try:
+				self._widget.lineEdit_arm_j4.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[3])	#j4 arm
+			except AttributeError,e:
+				rospy.logerr('MissionCommanderGUI: %s'%e)
+			try:
+				self._widget.lineEdit_arm_j5.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[4])	#j5 arm
+			except AttributeError,e:
+				rospy.logerr('MissionCommanderGUI: %s'%e)
+			try:
+				self._widget.lineEdit_arm_j6.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[5])	#j6 arm
+			except AttributeError,e:
+				rospy.logerr('MissionCommanderGUI: %s'%e)
+			
+		
+		# Cameras
+		try:
+			self._widget.lineEdit_camera_state.setText(self._components_state['mission_state']['state'].camera_state)	# State
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_image_name_1.setText(self._components_state['mission_state']['state'].image_file_name1)	# Image file 1
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_image_name_2.setText(self._components_state['mission_state']['state'].image_file_name2)	# Image file 2
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_stereo_name_1.setText(self._components_state['mission_state']['state'].stereo_file_name1)	# Stereo file 1
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_stereo_name_2.setText(self._components_state['mission_state']['state'].stereo_file_name2)	# Stereo file 2
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_profile_name.setText(self._components_state['mission_state']['state'].profile_file_name)	# Profile name
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
+		try:
+			self._widget.lineEdit_crack_pixel_x.setText('%d'%self._components_state['mission_state']['state'].crack_pixel_x)	#crack pixel x
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_crack_pixel_y.setText('%d'%self._components_state['mission_state']['state'].crack_pixel_y)	#crack pixel y
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_crack_pos_x.setText('%.3lf'%self._components_state['mission_state']['state'].crack_position_x)	#crack position x
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_crack_pos_y.setText('%.3lf'%self._components_state['mission_state']['state'].crack_position_y)	#crack position y
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_crack_pos_z.setText('%.3lf'%self._components_state['mission_state']['state'].crack_position_z)	#crack position z
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+			
+		
+		# Ultrasounds
+		try:
+			self._widget.lineEdit_ultrasounds_state.setText(self._components_state['mission_state']['state'].ultrasonic_state)	# State
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_crack_width.setText('%.3lf'%self._components_state['mission_state']['state'].crack_width)	#crack width
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_crack_depth.setText('%.3lf'%self._components_state['mission_state']['state'].crack_depth)	#crack depth
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+			
+		
 		t_now = rospy.Time.now()
 		for component in self._components_state:
 			if self._components_state[component]['label']:
