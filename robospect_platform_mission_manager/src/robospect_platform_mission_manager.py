@@ -42,6 +42,7 @@ from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState
 from robospect_msgs.srv import PlatformCommandSrv
 from robotnik_trajectory_planner.msg import CartesianEuler, JointByJoint
 from robotnik_trajectory_planner.msg import State as TrajectoryPlannerState
+from robotnik_trajectory_control.srv import TrajExecActions
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import JointState
 
@@ -82,6 +83,9 @@ Y_DEFAULT_OFFSET = -1.0
 Z_DEFAULT_OFFSET = -0.4
 # timeout in secs
 DEFAULT_COMMAND_TIMEOUT = 120.0
+# Commands to send to the Robotnik Trajectory Control Node
+RT_TRAJ_EXE_SET_TIP_FIRST=0
+RT_TRAJ_EXE_UNSET_TIP_FIRST=1
 
 # Client based on ActionServer to send goals to the purepursuit node
 class PurePursuitClient():
@@ -269,6 +273,7 @@ class RobospectPlatformMissionManager:
 		self._crack_frame_id = args['crack_frame_id']
 		self._crack_approach_arm_frame_id = args['crack_approach_arm_frame_id']
 		self._crack_approach_crane_frame_id = args['crack_approach_crane_frame_id']
+		self._traj_exec_actions_name = args['traj_exec_actions_name']
 		
 		if self._command_advance_speed > self._command_advance_max_speed:
 			self._command_advance_speed = self._command_advance_max_speed
@@ -379,7 +384,10 @@ class RobospectPlatformMissionManager:
 		self._platform_command_server = rospy.Service('/platform_command', PlatformCommandSrv, self._platform_command_cb)
 		
 		# Service Clients
-		# self.service_client = rospy.ServiceProxy('service_name', ServiceMsg)
+		# Service to set the order of joint movements of the crane
+		self._rt_traj_exe_actions_service_client = rospy.ServiceProxy(self._traj_exec_actions_name, TrajExecActions)
+		#rospy.loginfo('rosSetup: Connecting to service %s'%self._traj_exec_actions_name )
+		
 		# ret = self.service_client.call(ServiceMsg)
 		# Simple Action Client
 		self._base_move_client = PurePursuitClient(self._base_planner_name)
@@ -710,6 +718,15 @@ class RobospectPlatformMissionManager:
 				traj_planner_state = self._crane_move_client.getState()
 				
 				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+					# Setting the order of joints movement
+					action = TrajExecActions()
+					action.action = RT_TRAJ_EXE_SET_TIP_FIRST
+					ret = self._rt_traj_exe_actions_service_client.call(action.action)
+					
+					if not ret:
+						rospy.logerr('%s::readyState: error communicating with rt_traj_exec', self.node_name)
+						return
+						
 					rospy.loginfo('%s::readyState: New trajectory command %s to (%lf, %lf, %lf)', self.node_name, self._platform_current_command.command, self._platform_current_command.variables[0], self._platform_current_command.variables[1], self._platform_current_command.variables[2])
 					# Tries to transform the crack point from arm_link to tip_link
 					crack_point = PointStamped()
@@ -788,6 +805,14 @@ class RobospectPlatformMissionManager:
 				
 				# TODO
 				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+					# Setting the order of joints movement
+					action = TrajExecActions()
+					action.action = RT_TRAJ_EXE_UNSET_TIP_FIRST
+					ret = self._rt_traj_exe_actions_service_client.call(action.action)
+					if not ret:
+						rospy.logerr('%s::readyState: error communicating with rt_traj_exec', self.node_name)
+						return
+						
 					self._crane_move_client.foldCrane()
 					self._command_init_time = rospy.Time.now()
 					rospy.loginfo('%s::readyState: New trajectory command %s', self.node_name, self._platform_current_command.command)
@@ -1127,6 +1152,7 @@ def main():
 	  'crack_approach_arm_frame_id': '/arm_link',
 	  'crack_approach_crane_frame_id': '/tip_link',
 	  'crack_frame_id': '/map',
+	  'traj_exec_actions_name': '/rt_traj_exe/actions',
 	}
 	
 	args = {}
