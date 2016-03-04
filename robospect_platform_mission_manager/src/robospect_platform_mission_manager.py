@@ -258,7 +258,7 @@ class RobospectPlatformMissionManager:
 		self._robot_state_sub = rospy.Subscriber(self._robot_state_topic, State, self._robot_state_cb, queue_size = 10)
 		
 		# Service Servers
-		self._platform_command_server = rospy.Service('/platform_command', PlatformCommandSrv, self._platform_command_cb)
+		self._platform_command_server = rospy.Service('/platform_command_srv', PlatformCommandSrv, self._platform_command_cb)
 		
 		# Service Clients
 		# self.service_client = rospy.ServiceProxy('service_name', ServiceMsg)
