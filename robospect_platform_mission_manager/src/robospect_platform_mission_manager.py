@@ -39,6 +39,7 @@ import time, threading, copy
 from robotnik_msgs.msg import State
 from std_msgs.msg import String
 from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState
+from robospect_msgs.msg import State as RobospectState
 from robospect_msgs.srv import PlatformCommandSrv
 from robotnik_trajectory_planner.msg import CartesianEuler, JointByJoint
 from robotnik_trajectory_planner.msg import State as TrajectoryPlannerState
@@ -226,8 +227,8 @@ class CraneTrajectoryClient():
 			@brief sends the command to move the crane to home position
 		'''
 		msg = JointByJoint()
-		msg.joints = ['crane_first_joint', 'crane_second_joint', 'crane_third_joint', 'crane_fourth_joint', 'crane_fifth_joint', 'crane_sixth_joint']
-		msg.values = [0.0, 0.2, 0.04, 0.2, -1.24, 0.0]
+		msg.joints = ['crane_first_joint', 'crane_second_joint', 'crane_third_joint', 'crane_fourth_joint', 'crane_sixth_joint', 'crane_tip_joint']
+		msg.values = [0.0, 0.1, 0.04, 0.2, -1.0, 0.0]
 		msg.relative = False
 		
 		return self.goTo(msg)
@@ -274,6 +275,7 @@ class RobospectPlatformMissionManager:
 		self._crack_approach_arm_frame_id = args['crack_approach_arm_frame_id']
 		self._crack_approach_crane_frame_id = args['crack_approach_crane_frame_id']
 		self._traj_exec_actions_name = args['traj_exec_actions_name']
+		self._avoid_crane_movement = args['avoid_crane_movement']
 		
 		if self._command_advance_speed > self._command_advance_max_speed:
 			self._command_advance_speed = self._command_advance_max_speed
@@ -378,7 +380,7 @@ class RobospectPlatformMissionManager:
 		#self._platform_command_sub = rospy.Subscriber('/platform_command', PlatformCommand, self._platform_command_cb, queue_size = 10)
 		self._odom_sub = rospy.Subscriber(self._odom_topic, Odometry, self._odom_cb, queue_size = 10)
 		self._joint_state_sub = rospy.Subscriber(self._jointstate_topic, JointState, self._joint_state_cb, queue_size = 10)
-		self._robot_state_sub = rospy.Subscriber(self._robot_state_topic, State, self._robot_state_cb, queue_size = 10)
+		self._robot_state_sub = rospy.Subscriber(self._robot_state_topic, RobospectState, self._robot_state_cb, queue_size = 10)
 		
 		# Service Servers
 		self._platform_command_server = rospy.Service('/platform_command', PlatformCommandSrv, self._platform_command_cb)
@@ -788,11 +790,18 @@ class RobospectPlatformMissionManager:
 					msg.y = crack_approach_crane_point.point.y
 					msg.z = crack_approach_crane_point.point.z
 					msg.roll = msg.pitch = msg.yaw = 0.0
-					self._crane_move_client.goTo(msg)
-					self._command_init_time = rospy.Time.now()
-					# Give some time to activate the service
-					rospy.sleep(1)
-					self.command_state = COMMAND_STATE_WAITING
+					print 'sending msg: %s'%msg
+					if self._avoid_crane_movement:
+						self.command_state = COMMAND_STATE_ENDED
+						rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
+						self._platform_current_command.command = DONE_MOVE_CRANE
+					else:
+						
+						self._crane_move_client.goTo(msg)
+						self._command_init_time = rospy.Time.now()
+						# Give some time to activate the service
+						rospy.sleep(2)
+						self.command_state = COMMAND_STATE_WAITING
 				else:
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
@@ -1141,7 +1150,7 @@ def main():
 	  'arm_frame_id': '/arm_link',
 	  'camera_frame_id': '/grasshopper3_left_camera_lens_link',
 	  'joint_linear_speed': 'j9_velocity',
-	  'publish_mission_state': True,
+	  'publish_mission_state': False,
 	  'base_planner_name': '/robospect_planner',
 	  'advance_speed': COMMAND_ADVANCE_SPEED,
 	  'advance_max_speed': COMMAND_ADVANCE_MAX_SPEED,
@@ -1153,6 +1162,7 @@ def main():
 	  'crack_approach_crane_frame_id': '/tip_link',
 	  'crack_frame_id': '/map',
 	  'traj_exec_actions_name': '/rt_traj_exe/actions',
+	  'avoid_crane_movement': False
 	}
 	
 	args = {}
