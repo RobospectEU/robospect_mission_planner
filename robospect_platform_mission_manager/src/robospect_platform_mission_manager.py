@@ -63,6 +63,7 @@ MAX_FREQ = 500.0
 COMMAND_ADVANCE = 'advance'
 COMMAND_MOVE_CRANE = 'moveCrane'
 COMMAND_FOLD_CRANE = 'foldCrane'
+COMMAND_TRANSFORM = 'transform'
 DONE_ADVANCE = 'doneAdvance'
 DONE_MOVE_CRANE = 'doneMoveCrane'
 DONE_FOLD_CRANE = 'doneFoldCrane'
@@ -1002,6 +1003,14 @@ class RobospectPlatformMissionManager:
 			@param req: received request
 			@type msg: robospect_msgs/PlatformCommandSrv
 		'''
+		# SPECIAL COMMANDS WITH NO ACTIONS
+		ret, value = self._transform_command(req.command)
+		
+		if ret == 0:
+			return 'OK,%s'%value
+		elif ret == -2:
+			return 'ERROR,%s'%value
+		
 		
 		if self.state == State.STANDBY_STATE  and len(self._platform_commands) == 0:
 			# Checks if the command is correct
@@ -1092,6 +1101,43 @@ class RobospectPlatformMissionManager:
 			return True
 		else:
 			return False
+	
+	
+	def _transform_command(self, command):
+		'''
+			Process and performs the transformation if the command is correct
+			@param command as robospect_msgs/PlatformCommand: Command to proces
+			@return 0,"x,y,z" if OK
+			@return -1,"0,0,0" if ERROR in format
+			@return -2,"0,0,0" if ERROR in transformation
+		'''
+		
+		split_command = command.command.split(',')
+		
+		if len(split_command) != 3:
+			rospy.logerr('%s::_transform_command: the command %s format is not correct',self.node_name, command.command)
+			return -1,'0,0,0'
+		
+		if split_command[0] == COMMAND_TRANSFORM:
+			if len(command.variables) < 3:
+				rospy.logerr('%s::_transform_command: the command %s needs 3 variables for the x,y,z point coordinates',self.node_name, command.command)
+				return -1,'0,0,0'
+			
+			point = PointStamped()
+			point.point.x = command.variables[0]
+			point.point.y = command.variables[1]
+			point.point.z = command.variables[2]
+			
+			ret, transformed_point = self._transform_crack_to_link(point, split_command[1], split_command[2])
+			if ret == 0:
+				return 0,'%lf,%lf,%lf'%(transformed_point.point.x, transformed_point.point.y, transformed_point.point.z)
+			else:
+				rospy.logerr('%s::_transform_command: error transforming the point',self.node_name)
+				return -2,'0,0,0'
+		else:
+			rospy.logerr('%s::_transform_command: the command %s format is not correct',self.node_name, command.command)
+			return -1,'0,0,0'
+		
 		
 		
 	def _command_to_string(self, command):
@@ -1117,7 +1163,41 @@ class RobospectPlatformMissionManager:
 			return command.command
 		
 		return ""	
+	
+	
+	def _transform_crack_to_link(self, point, from_frame, to_frame):
+		'''
+			Converts a Point from a frame to another
+			@param point as PontStamped
+			@param from_frame as string
+			@param to_frame as string
+			@return 0,PointStamped if OK
+			@return -1,PointStamped if ERROR
+		'''
+		rospy.loginfo('%s::_convert_to_arm_link: converting crack (%.3lf, %.3lf, %.3lf) from %s to %s', self.node_name, point.point.x, point.point.y, point.point.z, from_frame, to_frame)
 		
+		if self._transform_listener.frameExists(from_frame) and self._transform_listener.frameExists(to_frame):
+			point.header.stamp = rospy.Time.now() - rospy.Time(1)
+			point.header.frame_id = from_frame
+			
+			try:
+				new_point = self._transform_listener.transformPoint(to_frame, point)
+				return 0, new_point
+			except tfException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+			#Another exception when there is no transform
+			except ConnectivityException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+			except LookupException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+			except ExtrapolationException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+
+		else:
+			rospy.logerr('%s::_transform_crack_to_link: frames %s,%s do not exist', self.node_name, from_frame, to_frame)
+		
+		return -1, PointStamped()
+
 	"""
 	def serviceCb(self, req):
 		'''
