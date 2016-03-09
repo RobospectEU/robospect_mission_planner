@@ -38,7 +38,8 @@ import time, threading, copy
 
 from robotnik_msgs.msg import State
 from std_msgs.msg import String
-from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState
+from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState, PlatformResponse
+from robospect_msgs.msg import State as RobospectState
 from robospect_msgs.srv import PlatformCommandSrv
 from robotnik_trajectory_planner.msg import CartesianEuler, JointByJoint
 from robotnik_trajectory_planner.msg import State as TrajectoryPlannerState
@@ -62,6 +63,7 @@ MAX_FREQ = 500.0
 COMMAND_ADVANCE = 'advance'
 COMMAND_MOVE_CRANE = 'moveCrane'
 COMMAND_FOLD_CRANE = 'foldCrane'
+COMMAND_TRANSFORM = 'transform'
 DONE_ADVANCE = 'doneAdvance'
 DONE_MOVE_CRANE = 'doneMoveCrane'
 DONE_FOLD_CRANE = 'doneFoldCrane'
@@ -74,6 +76,7 @@ COMMAND_CANCEL = 'cancel'
 COMMAND_STATE_INIT = 1
 COMMAND_STATE_WAITING = 2
 COMMAND_STATE_ENDED	= 3
+COMMAND_STATE_ERROR	= 4
 # 
 COMMAND_ADVANCE_SPEED = 0.4
 COMMAND_ADVANCE_MAX_SPEED = 0.5
@@ -226,8 +229,8 @@ class CraneTrajectoryClient():
 			@brief sends the command to move the crane to home position
 		'''
 		msg = JointByJoint()
-		msg.joints = ['crane_first_joint', 'crane_second_joint', 'crane_third_joint', 'crane_fourth_joint', 'crane_fifth_joint', 'crane_sixth_joint']
-		msg.values = [0.0, 0.2, 0.04, 0.2, -1.24, 0.0]
+		msg.joints = ['crane_first_joint', 'crane_second_joint', 'crane_third_joint', 'crane_fourth_joint', 'crane_sixth_joint', 'crane_tip_joint']
+		msg.values = [0.0, 0.1, 0.04, 0.2, -1.0, 0.0]
 		msg.relative = False
 		
 		return self.goTo(msg)
@@ -274,6 +277,7 @@ class RobospectPlatformMissionManager:
 		self._crack_approach_arm_frame_id = args['crack_approach_arm_frame_id']
 		self._crack_approach_crane_frame_id = args['crack_approach_crane_frame_id']
 		self._traj_exec_actions_name = args['traj_exec_actions_name']
+		self._avoid_crane_movement = args['avoid_crane_movement']
 		
 		if self._command_advance_speed > self._command_advance_max_speed:
 			self._command_advance_speed = self._command_advance_max_speed
@@ -316,6 +320,7 @@ class RobospectPlatformMissionManager:
 		self._linear_speed = 0.0
 		# Saves the state of the command execution
 		self.command_state = COMMAND_STATE_INIT
+		self._command_result = ''
 		# Flag active under requirement to cancel the current command
 		self._cancel_command = False
 		
@@ -364,6 +369,8 @@ class RobospectPlatformMissionManager:
 		self._crack_publisher = rospy.Publisher('~crack', PointStamped, queue_size=10)
 		self._crack_approach_arm_publisher = rospy.Publisher('~crack_approach_arm', PointStamped, queue_size=10)
 		self._crack_approach_crane_publisher = rospy.Publisher('~crack_approach_crane', PointStamped, queue_size=10)
+		self._platform_result_pub = rospy.Publisher('/platform_response', PlatformResponse, queue_size=10)
+
 		
 		self._crack_point = PointStamped()
 		self._crack_approach_arm_point = PointStamped()
@@ -378,7 +385,7 @@ class RobospectPlatformMissionManager:
 		#self._platform_command_sub = rospy.Subscriber('/platform_command', PlatformCommand, self._platform_command_cb, queue_size = 10)
 		self._odom_sub = rospy.Subscriber(self._odom_topic, Odometry, self._odom_cb, queue_size = 10)
 		self._joint_state_sub = rospy.Subscriber(self._jointstate_topic, JointState, self._joint_state_cb, queue_size = 10)
-		self._robot_state_sub = rospy.Subscriber(self._robot_state_topic, State, self._robot_state_cb, queue_size = 10)
+		self._robot_state_sub = rospy.Subscriber(self._robot_state_topic, RobospectState, self._robot_state_cb, queue_size = 10)
 		
 		# Service Servers
 		self._platform_command_server = rospy.Service('/platform_command_srv', PlatformCommandSrv, self._platform_command_cb)
@@ -711,6 +718,8 @@ class RobospectPlatformMissionManager:
 					self.command_state = COMMAND_STATE_WAITING
 				else:
 					rospy.logerr('%s::readyState: Error sending command to the platfom', self.node_name)
+					#
+					self._command_result = FAIL_ADVANCE
 					self.command_state = COMMAND_STATE_ENDED
 			
 			# MOVE CRANE
@@ -788,15 +797,24 @@ class RobospectPlatformMissionManager:
 					msg.y = crack_approach_crane_point.point.y
 					msg.z = crack_approach_crane_point.point.z
 					msg.roll = msg.pitch = msg.yaw = 0.0
-					self._crane_move_client.goTo(msg)
-					self._command_init_time = rospy.Time.now()
-					# Give some time to activate the service
-					rospy.sleep(1)
-					self.command_state = COMMAND_STATE_WAITING
+					#print 'sending msg: %s'%msg
+					if self._avoid_crane_movement:
+						self.command_state = COMMAND_STATE_ENDED
+						rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
+						#self._platform_current_command.command = DONE_MOVE_CRANE
+						self._command_result = DONE_MOVE_CRANE
+					else:
+						
+						self._crane_move_client.goTo(msg)
+						self._command_init_time = rospy.Time.now()
+						# Give some time to activate the service
+						rospy.sleep(2)
+						self.command_state = COMMAND_STATE_WAITING
 				else:
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
-					self._platform_current_command.command = FAIL_MOVE_CRANE
+					#self._platform_current_command.command = FAIL_MOVE_CRANE
+					self._command_result = FAIL_MOVE_CRANE
 			
 			
 			# FOLD CRANE		
@@ -819,9 +837,11 @@ class RobospectPlatformMissionManager:
 					rospy.sleep(1)
 					self.command_state = COMMAND_STATE_WAITING
 				else:
+					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
-			
+					self._command_result = FAIL_MOVE_CRANE
 			else:
+				self._command_result = ''
 				self.command_state = COMMAND_STATE_ENDED
 		
 		# Wait for the end
@@ -833,13 +853,15 @@ class RobospectPlatformMissionManager:
 				if action_state == GoalStatus.SUCCEEDED or action_state == GoalStatus.PREEMPTED or action_state == GoalStatus.ABORTED or action_state == GoalStatus.REJECTED or action_state == GoalStatus.LOST:	
 					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
 					self.command_state = COMMAND_STATE_ENDED
-					self._platform_current_command.command = DONE_ADVANCE
+					#self._platform_current_command.command = DONE_ADVANCE
+					self._command_result = DONE_ADVANCE
 				# Cancel requested
 				elif self._cancel_command:
 					rospy.loginfo('%s::readyState: cancelling command %s'%(self.node_name,self._platform_current_command.command))
 					self._base_move_client.cancel()
 					self.command_state = COMMAND_STATE_ENDED
-					self._platform_current_command.command = FAIL_ADVANCE
+					#self._platform_current_command.command = FAIL_ADVANCE
+					self._command_result = FAIL_ADVANCE
 					
 				
 			# MOVE CRANE
@@ -850,14 +872,16 @@ class RobospectPlatformMissionManager:
 				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
-					self._platform_current_command.command = DONE_MOVE_CRANE
+					#self._platform_current_command.command = DONE_MOVE_CRANE
+					self._command_result = DONE_MOVE_CRANE
 				else:
 					t_diff = (rospy.Time.now() - self._command_init_time).to_sec()  
 					if t_diff > self._command_timeout:
 						rospy.loginfo('%s::readyState: Timeout (%d secs) in command %s'%(self.node_name, t_diff, self._platform_current_command.command))
 						self._crane_move_client.cancel()
 						self.command_state = COMMAND_STATE_ENDED
-						self._platform_current_command.command = FAIL_MOVE_CRANE
+						#self._platform_current_command.command = FAIL_MOVE_CRANE
+						self._command_result = FAIL_MOVE_CRANE
 						
 			# FOLD CRANE
 			elif self._platform_current_command.command == COMMAND_FOLD_CRANE:
@@ -866,21 +890,26 @@ class RobospectPlatformMissionManager:
 				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
-					self._platform_current_command.command = DONE_FOLD_CRANE
+					#self._platform_current_command.command = DONE_FOLD_CRANE
+					self._command_result = DONE_FOLD_CRANE
 				else:
 					t_diff = (rospy.Time.now() - self._command_init_time).to_sec()  
 					if t_diff > self._command_timeout:
 						rospy.loginfo('%s::readyState: Timeout (%d secs) in command %s'%(self.node_name, t_diff, self._platform_current_command.command))
 						self._crane_move_client.cancel()
 						self.command_state = COMMAND_STATE_ENDED
-						self._platform_current_command.command = FAIL_FOLD_CRANE
+						#self._platform_current_command.command = FAIL_FOLD_CRANE
+						self._command_result = FAIL_FOLD_CRANE
 			else:
 				rospy.loginfo('%s::readyState: command %s disabled'%(self.node_name,self._platform_current_command.command))
 				self.command_state = COMMAND_STATE_ENDED
-				self._platform_current_command.command = ''
+				self._command_result = ''
+				#self._platform_current_command.command = ''
 				
 		
 		elif self.command_state == COMMAND_STATE_ENDED:
+			self._publish_result(self._platform_current_command, self._command_result)
+			
 			self._platform_current_command.variables = []
 			self.command_state = COMMAND_STATE_INIT
 			self.switchToState(State.STANDBY_STATE)
@@ -993,24 +1022,31 @@ class RobospectPlatformMissionManager:
 			@param req: received request
 			@type msg: robospect_msgs/PlatformCommandSrv
 		'''
+		# SPECIAL COMMANDS WITH NO ACTIONS
+		ret, value = self._transform_command(req.command)
+		
+		if ret == 0:
+			return 'OK,%s'%value
+		elif ret == -2:
+			return 'ERROR,%s'%value
+		
 		
 		if self.state == State.STANDBY_STATE  and len(self._platform_commands) == 0:
 			# Checks if the command is correct
 			if not self._check_command(req.command):
-				return "ERROR_COMMAND"
+				return "fail"
 			if req.command.command != COMMAND_CANCEL:
-				print req.command
 				# Adding new command
 				self._platform_commands.append(req.command)
 				self._platform_command_time = rospy.Time.now()
 		
-			return "OK"
+			return "ok"
 		else:
 			if req.command.command == COMMAND_CANCEL:
 				self._cancel_command = True
-				return "OK"
+				return "ok"
 			else:	
-				return "BUSY"
+				return "busy"
 		
 		# Confirms the command reception, sending it back
 		# self._platform_response_pub.publish(msg)
@@ -1065,6 +1101,7 @@ class RobospectPlatformMissionManager:
 			@type command: robospect_msgs/PlatformCommand
 			@return True if the command is correct, False otherwise
 		'''
+		print command.command
 		if command.command == COMMAND_ADVANCE:
 			if len(command.variables) < 1:
 				rospy.logerr('%s::_check_command: the command %s needs 1 variable for the distance',self.node_name, command.command)
@@ -1078,11 +1115,49 @@ class RobospectPlatformMissionManager:
 			return True
 			
 		elif command.command == COMMAND_FOLD_CRANE:
+			
 			return True
 		elif command.command == COMMAND_CANCEL:
 			return True
 		else:
 			return False
+	
+	
+	def _transform_command(self, command):
+		'''
+			Process and performs the transformation if the command is correct
+			@param command as robospect_msgs/PlatformCommand: Command to proces
+			@return 0,"x,y,z" if OK
+			@return -1,"0,0,0" if ERROR in format
+			@return -2,"0,0,0" if ERROR in transformation
+		'''
+		
+		split_command = command.command.split(',')
+		
+		if len(split_command) != 3:
+			#rospy.logerr('%s::_transform_command: the command %s format is not correct',self.node_name, command.command)
+			return -1,'0,0,0'
+		
+		if split_command[0] == COMMAND_TRANSFORM:
+			if len(command.variables) < 3:
+				rospy.logerr('%s::_transform_command: the command %s needs 3 variables for the x,y,z point coordinates',self.node_name, command.command)
+				return -1,'0,0,0'
+			
+			point = PointStamped()
+			point.point.x = command.variables[0]
+			point.point.y = command.variables[1]
+			point.point.z = command.variables[2]
+			
+			ret, transformed_point = self._transform_crack_to_link(point, split_command[1], split_command[2])
+			if ret == 0:
+				return 0,'%lf,%lf,%lf'%(transformed_point.point.x, transformed_point.point.y, transformed_point.point.z)
+			else:
+				rospy.logerr('%s::_transform_command: error transforming the point',self.node_name)
+				return -2,'0,0,0'
+		else:
+			rospy.logerr('%s::_transform_command: the command %s format is not correct',self.node_name, command.command)
+			return -1,'0,0,0'
+		
 		
 		
 	def _command_to_string(self, command):
@@ -1093,21 +1168,74 @@ class RobospectPlatformMissionManager:
 		'''
 		
 		if command.command == COMMAND_ADVANCE:
-			return '%s [%.2f m]'%(command.command, command.variables[0])
+			#return '%s [%.2f m]'%(command.command, command.variables[0])
+			return '%s'%(command.command)
 			
 		if command.command == DONE_ADVANCE or command.command == FAIL_ADVANCE:
 			return '%s'%(command.command)
 		
 		elif command.command == COMMAND_MOVE_CRANE:
-			return '%s [%.2f %.2f %2f]'%(command.command, command.variables[0], command.variables[1], command.variables[2])
+			#return '%s [%.2f %.2f %2f]'%(command.command, command.variables[0], command.variables[1], command.variables[2])
+			return '%s'%(command.command)
 			
 		elif command.command == DONE_MOVE_CRANE or command.command == FAIL_MOVE_CRANE:
 			return '%s'%(command.command)
 			
 		elif command.command == COMMAND_FOLD_CRANE or command.command == DONE_FOLD_CRANE or command.command == FAIL_FOLD_CRANE:
 			return command.command
+		else:
+			return command.command
 		
 		return ""	
+	
+	
+	def _transform_crack_to_link(self, point, from_frame, to_frame):
+		'''
+			Converts a Point from a frame to another
+			@param point as PontStamped
+			@param from_frame as string
+			@param to_frame as string
+			@return 0,PointStamped if OK
+			@return -1,PointStamped if ERROR
+		'''
+		rospy.loginfo('%s::_convert_to_arm_link: converting crack (%.3lf, %.3lf, %.3lf) from %s to %s', self.node_name, point.point.x, point.point.y, point.point.z, from_frame, to_frame)
+		
+		if self._transform_listener.frameExists(from_frame) and self._transform_listener.frameExists(to_frame):
+			point.header.stamp = rospy.Time.now() - rospy.Time(1)
+			point.header.frame_id = from_frame
+			
+			try:
+				new_point = self._transform_listener.transformPoint(to_frame, point)
+				return 0, new_point
+			except tfException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+			#Another exception when there is no transform
+			except ConnectivityException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+			except LookupException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+			except ExtrapolationException, e:
+				rospy.logerr('%s::_transform_crack_to_link: %s'%(self.node_name, e))
+
+		else:
+			rospy.logerr('%s::_transform_crack_to_link: frames %s,%s do not exist', self.node_name, from_frame, to_frame)
+		
+		return -1, PointStamped()
+
+	
+	def _publish_result(self, command, result):
+		'''
+			Publish the result of a command into a topic
+			@param command as PlatformCommand.msg
+			@param result as string, the result of the command
+		'''
+		
+		msg = PlatformResponse()
+		msg.command = command
+		msg.result = result
+		 
+		self._platform_result_pub.publish(msg)
+		
 		
 	"""
 	def serviceCb(self, req):
@@ -1141,7 +1269,7 @@ def main():
 	  'arm_frame_id': '/arm_link',
 	  'camera_frame_id': '/grasshopper3_left_camera_lens_link',
 	  'joint_linear_speed': 'j9_velocity',
-	  'publish_mission_state': True,
+	  'publish_mission_state': False,
 	  'base_planner_name': '/robospect_planner',
 	  'advance_speed': COMMAND_ADVANCE_SPEED,
 	  'advance_max_speed': COMMAND_ADVANCE_MAX_SPEED,
@@ -1153,6 +1281,7 @@ def main():
 	  'crack_approach_crane_frame_id': '/tip_link',
 	  'crack_frame_id': '/map',
 	  'traj_exec_actions_name': '/rt_traj_exe/actions',
+	  'avoid_crane_movement': False
 	}
 	
 	args = {}
