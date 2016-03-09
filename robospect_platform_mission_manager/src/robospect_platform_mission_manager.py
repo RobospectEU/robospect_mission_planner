@@ -1026,9 +1026,9 @@ class RobospectPlatformMissionManager:
 		ret, value = self._transform_command(req.command)
 		
 		if ret == 0:
-			return 'OK,%s'%value
+			return 'ok,%s'%value
 		elif ret == -2:
-			return 'ERROR,%s'%value
+			return 'error,%s'%value
 		
 		
 		if self.state == State.STANDBY_STATE  and len(self._platform_commands) == 0:
