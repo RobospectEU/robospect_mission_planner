@@ -59,7 +59,7 @@ from waypoints_marker import *
 
 TIMEOUT_SERVICE = 2.0
 TIMEOUT_TOPIC = 2.0
-mission_commands = ['cracks', 'distance', 'threshold', 'stop', 'waypoints']
+mission_commands = ['cracks', 'distance', 'threshold', 'stop', 'complete']
 
 
 class MissionCommanderGUI(Plugin):
@@ -122,7 +122,7 @@ class MissionCommanderGUI(Plugin):
 		'''
 			Inits topic names, topic and service connections
 		'''
-		self._command_service = rospy.get_param('/services/mission_command', default='/mission_command')
+		self._command_service = rospy.get_param('/services/mission_command', default='/mission_command_srv')
 		self._mission_state_topic = rospy.get_param('/topics/mission_state', default='/mission_state')
 		self._platform_controller_state_topic = rospy.get_param('/topics/platform_controller_state', default='/robospect_platform_controller/state')
 		self._navigation_planner_state_topic = rospy.get_param('/topics/navigation_planner_state', default='/robospect_planner/state')
@@ -191,7 +191,7 @@ class MissionCommanderGUI(Plugin):
 					
 		srv = MissionCommandSrv()
 		
-		if msg.command == 'waypoints':
+		if msg.command == 'complete':
 			waypoints = self.waypoints_markers.getMissionPoints()
 			
 			if len(waypoints) == 0:
