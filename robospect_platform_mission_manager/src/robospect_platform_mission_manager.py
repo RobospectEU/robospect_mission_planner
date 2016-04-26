@@ -37,7 +37,7 @@ import rospy
 import time, threading, copy
 
 from robotnik_msgs.msg import State
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState, PlatformResponse
 from robospect_msgs.msg import State as RobospectState
 from robospect_msgs.srv import PlatformCommandSrv
@@ -46,6 +46,7 @@ from robotnik_trajectory_planner.msg import State as TrajectoryPlannerState
 from robotnik_trajectory_control.srv import TrajExecActions
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import JointState
+from dynamixel_msgs.msg import JointState as DynamixelState
 
 from tf.transformations import euler_from_quaternion	
 from tf import TransformListener, Exception as tfException, ConnectivityException, LookupException, ExtrapolationException
@@ -64,12 +65,15 @@ COMMAND_ADVANCE = 'advance'
 COMMAND_MOVE_CRANE = 'moveCrane'
 COMMAND_FOLD_CRANE = 'foldCrane'
 COMMAND_TRANSFORM = 'transform'
+COMMAND_PANTILT = 'setPanTilt'
 DONE_ADVANCE = 'doneAdvance'
 DONE_MOVE_CRANE = 'doneMoveCrane'
 DONE_FOLD_CRANE = 'doneFoldCrane'
+DONE_PANTILT = 'doneSetPanTilt'
 FAIL_ADVANCE = 'failAdvance'
 FAIL_MOVE_CRANE = 'failMoveCrane'
 FAIL_FOLD_CRANE = 'failFoldCrane'
+FAIL_PANTILT = 'failSetPanTilt'
 
 COMMAND_CANCEL = 'cancel'
 # State of the command execution
@@ -234,11 +238,102 @@ class CraneTrajectoryClient():
 		msg.relative = False
 		
 		return self.goTo(msg)
-
+		
+		
+		
+# Client based on topics to command the pan-tilt mechanism
+class PanTiltClient():
+	
+	
+	def __init__(self, pan_command_topic, tilt_command_topic, pan_state_topic, tilt_state_topic):
+		
+		self._pan_command_topic = pan_command_topic
+		self._tilt_command_topic = tilt_command_topic
+		self._pan_state_topic = pan_state_topic
+		self._tilt_state_topic = tilt_state_topic
+		
+		self._pan_command_pub = rospy.Publisher(self._pan_command_topic, Float64, queue_size = 2)
+		self._tilt_command_pub = rospy.Publisher(self._tilt_command_topic, Float64, queue_size = 2)
+		self._pan_state_sub = rospy.Subscriber(self._pan_state_topic, DynamixelState, self._pan_state_cb, queue_size = 2)
+		self._tilt_state_sub = rospy.Subscriber(self._tilt_state_topic, DynamixelState, self._tilt_state_cb, queue_size = 2)
+	
+		self._pan_state = DynamixelState()
+		self._tilt_state = DynamixelState()
+		
+		self._pan_state_topic_timer = rospy.Time.now()
+		self._tilt_state_topic_timer = rospy.Time.now()
+		self._state_topic_timeout = 1.0
+		
+	def _pan_state_cb(self, msg):
+		'''
+			Callback for DynamixelState msg
+			@param msg: received message
+			@type msg: dynamixel_msgs/JointState
+		'''
+		self._pan_state_topic_timer = rospy.Time.now()
+		self._pan_state = msg	
+		
+	def _tilt_state_cb(self, msg):
+		'''
+			Callback for DynamixelState msg
+			@param msg: received message
+			@type msg: dynamixel_msgs/JointState
+		'''
+		self._tilt_state_topic_timer = rospy.Time.now()
+		self._tilt_state = msg	
+		
+	
+	def goTo(self, pan_joint, tilt_joint):
+		'''
+			@brief Sends the pan and tilt joint values to the component
+			@param pan_joint as Float64
+			@param tilt_joint as Float64
+			@return 0 if OK
+			@return -1 if ERROR
+		'''
+		
+		self._pan_command_pub.publish(pan_joint)
+		self._tilt_command_pub.publish(tilt_joint)
+		
+		return 0
+		
+	def cancel(self):		
+		'''
+			@brief cancel the current goal
+		'''
+		pass
+	
+	def getState(self):	
+		'''
+			@return 0 if OK
+			@return -1 if no communication
+		'''
+		t_now = rospy.Time.now()
+		
+		if (t_now - self._tilt_state_topic_timer).to_sec() > self._state_topic_timeout or (t_now - self._pan_state_topic_timer).to_sec() > self._state_topic_timeout:
+			return State.EMERGENCY_STATE
+		
+		rospy.loginfo('tilt moveing %s ,pan moving %s'%(self._tilt_state.is_moving, self._pan_state.is_moving))
+		if self._tilt_state.is_moving or self._pan_state.is_moving:
+			return State.READY_STATE
+		
+		return State.STANDBY_STATE
+		
+		
+	def getStateString(self):
+		
+		return ''	
+	
+	def getResult(self):
+		'''
+			@brief Returns ret if OK, otherwise -1
+		'''
+		
+		return 0
 
 
 	
-# 
+# Main class to control and syncronize the platform
 class RobospectPlatformMissionManager:
 	
 	def __init__(self, args):
@@ -269,6 +364,10 @@ class RobospectPlatformMissionManager:
 		self._trajectory_planner_cartesian_command_topic = args['trajectory_planner_cartesian_command_topic']
 		self._trajectory_planner_joint_command_topic = args['trajectory_planner_joint_command_topic']
 		self._trajectory_planner_state_topic = args['trajectory_planner_state_topic']
+		self._pan_command_topic = args['pan_command_topic']
+		self._tilt_command_topic = args['tilt_command_topic']
+		self._pan_state_topic = args['pan_state_topic']
+		self._tilt_state_topic = args['tilt_state_topic']
 		self._point_offset = Point()
 		self._point_offset.x = X_DEFAULT_OFFSET
 		self._point_offset.y = Y_DEFAULT_OFFSET
@@ -401,8 +500,10 @@ class RobospectPlatformMissionManager:
 		
 		# interface to communicate with the Crane
 		self._crane_move_client = CraneTrajectoryClient(planner_cartesian_command_topic = self._trajectory_planner_cartesian_command_topic, 
-			planner_joint_command_topic = self._trajectory_planner_joint_command_topic, planner_state_topic = self._trajectory_planner_state_topic)
+		planner_joint_command_topic = self._trajectory_planner_joint_command_topic, planner_state_topic = self._trajectory_planner_state_topic)
 		
+		# interface to communicate with the pantilt head
+		self._pantilt_move_client = PanTiltClient(self._pan_command_topic, self._tilt_command_topic, self._pan_state_topic, self._tilt_state_topic)
 		
 		self.ros_initialized = True
 		
@@ -840,6 +941,27 @@ class RobospectPlatformMissionManager:
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
 					self._command_result = FAIL_MOVE_CRANE
+			
+			# PAN-TILT		
+			elif self._platform_current_command.command == COMMAND_PANTILT:
+				pantilt_state = self._pantilt_move_client.getState()
+				
+				# 
+				if pantilt_state == State.STANDBY_STATE:
+					pan = self._platform_current_command.variables[0]
+					tilt = self._platform_current_command.variables[1]
+					self._pantilt_move_client.goTo(pan_joint = pan, tilt_joint = tilt)
+					self._command_init_time = rospy.Time.now()
+					rospy.loginfo('%s::readyState: New pantilt command %s', self.node_name, self._platform_current_command.command)
+					rospy.sleep(1)
+					self.command_state = COMMAND_STATE_WAITING
+				else:
+					self.command_state = COMMAND_STATE_ENDED
+					rospy.loginfo('%s::readyState: Pan-Tilt not ready for a new command', self.node_name)
+					self._command_result = FAIL_PANTILT
+					
+					
+					
 			else:
 				self._command_result = ''
 				self.command_state = COMMAND_STATE_ENDED
@@ -847,6 +969,7 @@ class RobospectPlatformMissionManager:
 		# Wait for the end
 		elif self.command_state == COMMAND_STATE_WAITING:
 			
+			# ADVANCE
 			if self._platform_current_command.command == COMMAND_ADVANCE:
 				action_state = self._base_move_client.getState()
 				
@@ -900,6 +1023,25 @@ class RobospectPlatformMissionManager:
 						self.command_state = COMMAND_STATE_ENDED
 						#self._platform_current_command.command = FAIL_FOLD_CRANE
 						self._command_result = FAIL_FOLD_CRANE
+			
+			# PANTILT
+			elif self._platform_current_command.command == COMMAND_PANTILT:
+				pantilt_state = self._pantilt_move_client.getState()
+				
+				if pantilt_state == State.STANDBY_STATE:
+					self.command_state = COMMAND_STATE_ENDED
+					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
+					#self._platform_current_command.command = DONE_FOLD_CRANE
+					self._command_result = DONE_PANTILT
+				else:
+					t_diff = (rospy.Time.now() - self._command_init_time).to_sec()  
+					if t_diff > self._command_timeout:
+						rospy.loginfo('%s::readyState: Timeout (%d secs) in command %s'%(self.node_name, t_diff, self._platform_current_command.command))
+						self._crane_move_client.cancel()
+						self.command_state = COMMAND_STATE_ENDED
+						self._command_result = FAIL_PANTILT
+			
+			
 			else:
 				rospy.loginfo('%s::readyState: command %s disabled'%(self.node_name,self._platform_current_command.command))
 				self.command_state = COMMAND_STATE_ENDED
@@ -1114,6 +1256,12 @@ class RobospectPlatformMissionManager:
 				return False
 			return True
 			
+		elif command.command == COMMAND_PANTILT:
+			if len(command.variables) < 2:
+				rospy.logerr('%s::_check_command: the command %s needs 2 variables for the pan and tilt',self.node_name, command.command)
+				return False
+			return True
+			
 		elif command.command == COMMAND_FOLD_CRANE:
 			
 			return True
@@ -1281,7 +1429,11 @@ def main():
 	  'crack_approach_crane_frame_id': '/tip_link',
 	  'crack_frame_id': '/map',
 	  'traj_exec_actions_name': '/rt_traj_exe/actions',
-	  'avoid_crane_movement': False
+	  'avoid_crane_movement': False,
+	  'pan_command_topic': '/pan_controller/command',
+	  'tilt_command_topic': '/tilt_controller/command',
+	  'pan_state_topic': '/tilt_controller/state',
+	  'tilt_state_topic': '/tilt_controller/state'
 	}
 	
 	args = {}
