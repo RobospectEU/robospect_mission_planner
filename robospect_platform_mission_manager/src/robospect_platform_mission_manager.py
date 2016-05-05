@@ -118,7 +118,7 @@ class PurePursuitClient():
 			self.client.send_goal(g)
 			return 0
 		else:
-			rospy.logerr('PurepursuitClient: Error waiting for server')
+			rospy.logerr('PurepursuitClient: Error waiting for server %s'%self.planner_name)
 			return -1
 	
 	## @brief cancel the current goal
@@ -846,24 +846,26 @@ class RobospectPlatformMissionManager:
 					crack_point.point.x = self._platform_current_command.variables[0]
 					crack_point.point.y = self._platform_current_command.variables[1]
 					crack_point.point.z = self._platform_current_command.variables[2]
-					crack_point.header.frame_id = self._camera_frame_id
+					#crack_point.header.frame_id = self._camera_frame_id
+					crack_point.header.frame_id = self._base_frame_id
 					
 					
 					# Receives coordinates based on camera frame
 					# Transform the point into arm_base_link
-					ret, crack_approach_arm_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._arm_frame_id)
+					#ret, crack_approach_arm_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._arm_frame_id)
+					ret, crack_approach_crane_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._crane_tip_frame_id)
 					
 					if ret:
 						rospy.logerr('%s::readyState: error transforming crack point', self.node_name)
 						return
 					
 					# Applies offset to enable the arm operation close to the crack
-					crack_approach_arm_point.point.x += self._point_offset.x
-					crack_approach_arm_point.point.y += self._point_offset.y
-					crack_approach_arm_point.point.z += self._point_offset.z
+					#crack_approach_arm_point.point.x += self._point_offset.x
+					#crack_approach_arm_point.point.y += self._point_offset.y
+					#crack_approach_arm_point.point.z += self._point_offset.z
 					
 					
-					try:
+					"""try:
 						t = self._transform_listener.getLatestCommonTime(self._arm_frame_id, self._crane_tip_frame_id)
 						position, quaternion = self._transform_listener.lookupTransform(self._arm_frame_id, self._crane_tip_frame_id, t)
 						
@@ -884,11 +886,12 @@ class RobospectPlatformMissionManager:
 					if ret:
 						rospy.logerr('%s::readyState: error transforming crack point', self.node_name)
 						return
-					
+					"""
 					# Publish the points related to base frame
-					ret, self._crack_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._base_frame_id) 
-					ret, self._crack_approach_arm_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_arm_point), frame_id = self._base_frame_id)  
+					#ret, self._crack_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._base_frame_id) 
+					#ret, self._crack_approach_arm_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_arm_point), frame_id = self._base_frame_id)  
 					ret, self._crack_approach_crane_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_crane_point), frame_id = self._base_frame_id)  
+					#ret, self._crack_approach_crane_point = crack_approach_crane_point  
 					
 					#print 'Move the crane to (%lf, %lf, %lf)'%(crack_approach_crane_point.point.x, crack_approach_crane_point.point.y, crack_approach_crane_point.point.z) 
 					
@@ -905,7 +908,6 @@ class RobospectPlatformMissionManager:
 						#self._platform_current_command.command = DONE_MOVE_CRANE
 						self._command_result = DONE_MOVE_CRANE
 					else:
-						
 						self._crane_move_client.goTo(msg)
 						self._command_init_time = rospy.Time.now()
 						# Give some time to activate the service
@@ -958,9 +960,7 @@ class RobospectPlatformMissionManager:
 				else:
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Pan-Tilt not ready for a new command', self.node_name)
-					self._command_result = FAIL_PANTILT
-					
-					
+					self._command_result = FAIL_PANTILT				
 					
 			else:
 				self._command_result = ''
@@ -1170,7 +1170,7 @@ class RobospectPlatformMissionManager:
 		if ret == 0:
 			return 'ok,%s'%value
 		elif ret == -2:
-			return 'error,%s'%value
+			return 'fail'
 		
 		
 		if self.state == State.STANDBY_STATE  and len(self._platform_commands) == 0:
