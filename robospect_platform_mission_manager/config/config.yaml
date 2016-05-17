@@ -4,6 +4,8 @@ camera_frame_id: /grasshopper3_top_left_camera_lens_link
 joint_states_topic: /joint_states
 odom_topic: /robospect_platform_controller/odom
 robot_state_topic: /robospect_platform_controller/state
+pan_command_topic: /robospect_ptu_node/pan_controller/command
+tilt_command_topic: /robospect_ptu_node/tilt_controller/command
 # Link to use for the transformation
 tip_link: tip_link
 avoid_crane_movement: false

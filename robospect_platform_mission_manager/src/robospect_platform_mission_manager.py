@@ -82,7 +82,7 @@ COMMAND_STATE_WAITING = 2
 COMMAND_STATE_ENDED	= 3
 COMMAND_STATE_ERROR	= 4
 # 
-COMMAND_ADVANCE_SPEED = 0.4
+COMMAND_ADVANCE_SPEED = 0.5
 COMMAND_ADVANCE_MAX_SPEED = 0.5
 # offset applied to the crack position
 X_DEFAULT_OFFSET = 0.0
@@ -313,7 +313,7 @@ class PanTiltClient():
 		if (t_now - self._tilt_state_topic_timer).to_sec() > self._state_topic_timeout or (t_now - self._pan_state_topic_timer).to_sec() > self._state_topic_timeout:
 			return State.EMERGENCY_STATE
 		
-		rospy.loginfo('tilt moveing %s ,pan moving %s'%(self._tilt_state.is_moving, self._pan_state.is_moving))
+		#rospy.loginfo('tilt moveing %s ,pan moving %s'%(self._tilt_state.is_moving, self._pan_state.is_moving))
 		if self._tilt_state.is_moving or self._pan_state.is_moving:
 			return State.READY_STATE
 		
@@ -352,6 +352,7 @@ class RobospectPlatformMissionManager:
 		self._odom_topic = args['odom_topic']
 		self._robot_state_topic = args['robot_state_topic']
 		self._crane_joints = args['crane_joints']
+		self._pantilt_joints = args['pantilt_joints']
 		self._crane_tip_frame_id = args['crane_tip_frame_id']
 		self._arm_frame_id = args['arm_frame_id']
 		self._camera_frame_id = args['camera_frame_id']
@@ -427,6 +428,9 @@ class RobospectPlatformMissionManager:
 		self._joints_dict = {}
 		# Inits joint states
 		for i in self._crane_joints:
+			# Only saves the position
+			self._joints_dict[i] = 0.0
+		for i in self._pantilt_joints:
 			# Only saves the position
 			self._joints_dict[i] = 0.0
 		
@@ -638,6 +642,8 @@ class RobospectPlatformMissionManager:
 		
 		self._platform_state.crane_joints = [self._joints_dict[self._crane_joints[0]], self._joints_dict[self._crane_joints[1]], self._joints_dict[self._crane_joints[2]], self._joints_dict[self._crane_joints[3]], self._joints_dict[self._crane_joints[4]],
 		self._joints_dict[self._crane_joints[5]], self._joints_dict[self._crane_joints[6]]]
+		self._platform_state.pan_angle = self._joints_dict[self._pantilt_joints[0]]
+		self._platform_state.tilt_angle = self._joints_dict[self._pantilt_joints[1]]
 		# Updates transform from crane_tip to map
 		if self._transform_listener.frameExists(self._crane_tip_frame_id) and self._transform_listener.frameExists(self._map_frame_id):
 			
@@ -924,9 +930,11 @@ class RobospectPlatformMissionManager:
 			elif self._platform_current_command.command == COMMAND_FOLD_CRANE:
 				traj_planner_state = self._crane_move_client.getState()
 				
+				self._pantilt_move_client.goTo(pan_joint = 0, tilt_joint = 0)
 				# TODO
 				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
 					# Setting the order of joints movement
+					
 					action = TrajExecActions()
 					action.action = RT_TRAJ_EXE_UNSET_TIP_FIRST
 					ret = self._rt_traj_exe_actions_service_client.call(action.action)
@@ -1297,6 +1305,7 @@ class RobospectPlatformMissionManager:
 			point.point.z = command.variables[2]
 			
 			ret, transformed_point = self._transform_crack_to_link(point, split_command[1], split_command[2])
+			rospy.loginfo('%s::_transform_command: transforming %lf,%lf,%lf point coordinates from %s to %s',self.node_name, transformed_point.point.x, transformed_point.point.y, transformed_point.point.z, split_command[1], split_command[2])
 			if ret == 0:
 				return 0,'%lf,%lf,%lf'%(transformed_point.point.x, transformed_point.point.y, transformed_point.point.z)
 			else:
@@ -1413,6 +1422,7 @@ def main():
 	  'odom_topic': '/odom',
 	  'robot_state_topic': '/robospect_platform_controller/state',
 	  'crane_joints': ['crane_first_joint','crane_second_joint'],
+	  'pantilt_joints': ['pan_joint','tilt_joint'],
 	  'crane_tip_frame_id': '/tip_link',
 	  'arm_frame_id': '/arm_link',
 	  'camera_frame_id': '/grasshopper3_left_camera_lens_link',
