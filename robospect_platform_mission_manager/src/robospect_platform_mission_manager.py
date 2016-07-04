@@ -82,8 +82,9 @@ COMMAND_STATE_WAITING = 2
 COMMAND_STATE_ENDED	= 3
 COMMAND_STATE_ERROR	= 4
 # 
-COMMAND_ADVANCE_SPEED = 0.5
+COMMAND_ADVANCE_SPEED = 0.45
 COMMAND_ADVANCE_MAX_SPEED = 0.5
+COMMAND_MOVE_CRANE_MIN_DISTANCE = 0.1 # Used to avoid crane movements
 # offset applied to the crack position
 X_DEFAULT_OFFSET = 0.0
 Y_DEFAULT_OFFSET = -1.0
@@ -93,6 +94,7 @@ DEFAULT_COMMAND_TIMEOUT = 120.0
 # Commands to send to the Robotnik Trajectory Control Node
 RT_TRAJ_EXE_SET_TIP_FIRST=0
 RT_TRAJ_EXE_UNSET_TIP_FIRST=1
+CRANE_VIBRATION_DELAY = 7.0
 
 # Client based on ActionServer to send goals to the purepursuit node
 class PurePursuitClient():
@@ -906,19 +908,24 @@ class RobospectPlatformMissionManager:
 					msg.x = crack_approach_crane_point.point.x
 					msg.y = crack_approach_crane_point.point.y
 					msg.z = crack_approach_crane_point.point.z
-					msg.roll = msg.pitch = msg.yaw = 0.0
-					#print 'sending msg: %s'%msg
+					msg.roll = msg.pitch = msg.yaw = 0.0	
+					print 'sending msg: %s'%msg
 					if self._avoid_crane_movement:
 						self.command_state = COMMAND_STATE_ENDED
 						rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
 						#self._platform_current_command.command = DONE_MOVE_CRANE
 						self._command_result = DONE_MOVE_CRANE
 					else:
-						self._crane_move_client.goTo(msg)
-						self._command_init_time = rospy.Time.now()
-						# Give some time to activate the service
-						rospy.sleep(2)
-						self.command_state = COMMAND_STATE_WAITING
+						if abs(msg.x) < COMMAND_MOVE_CRANE_MIN_DISTANCE and abs(msg.y) < COMMAND_MOVE_CRANE_MIN_DISTANCE and abs(msg.z) < COMMAND_MOVE_CRANE_MIN_DISTANCE:
+							self.command_state = COMMAND_STATE_ENDED
+							rospy.loginfo('%s::readyState: command %s finished due to small movement'%(self.node_name,self._platform_current_command.command))
+							self._command_result = DONE_MOVE_CRANE
+						else:
+							self._crane_move_client.goTo(msg)
+							self._command_init_time = rospy.Time.now()
+							# Give some time to activate the service
+							rospy.sleep(2)
+							self.command_state = COMMAND_STATE_WAITING
 				else:
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
@@ -974,6 +981,7 @@ class RobospectPlatformMissionManager:
 				self._command_result = ''
 				self.command_state = COMMAND_STATE_ENDED
 		
+		#
 		# Wait for the end
 		elif self.command_state == COMMAND_STATE_WAITING:
 			
@@ -1000,15 +1008,25 @@ class RobospectPlatformMissionManager:
 				
 				traj_planner_state = self._crane_move_client.getState()
 				
-				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+				# TO TEST
+				if traj_planner_state.state.state == State.FAILURE_STATE:
+					rospy.logerr('%s::readyState: error in trajectory. Command %s'%(self.node_name, self._platform_current_command.command))
+					self._crane_move_client.cancel()
+					self.command_state = COMMAND_STATE_ENDED
+					self._command_result = FAIL_MOVE_CRANE
+					
+				elif traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+				#if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
 					#self._platform_current_command.command = DONE_MOVE_CRANE
 					self._command_result = DONE_MOVE_CRANE
+					rospy.sleep(CRANE_VIBRATION_DELAY)
+					
 				else:
 					t_diff = (rospy.Time.now() - self._command_init_time).to_sec()  
 					if t_diff > self._command_timeout:
-						rospy.loginfo('%s::readyState: Timeout (%d secs) in command %s'%(self.node_name, t_diff, self._platform_current_command.command))
+						rospy.logerr('%s::readyState: Timeout (%d secs) in command %s'%(self.node_name, t_diff, self._platform_current_command.command))
 						self._crane_move_client.cancel()
 						self.command_state = COMMAND_STATE_ENDED
 						#self._platform_current_command.command = FAIL_MOVE_CRANE
@@ -1018,7 +1036,15 @@ class RobospectPlatformMissionManager:
 			elif self._platform_current_command.command == COMMAND_FOLD_CRANE:
 				traj_planner_state = self._crane_move_client.getState()
 				
-				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+				# TO TEST
+				if traj_planner_state.state.state == State.FAILURE_STATE:
+					rospy.logerr('%s::readyState: error in trajectory. Command %s'%(self.node_name, self._platform_current_command.command))
+					self._crane_move_client.cancel()
+					self.command_state = COMMAND_STATE_ENDED
+					self._command_result = FAIL_FOLD_CRANE
+					
+				elif traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
+				#if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: command %s finished'%(self.node_name,self._platform_current_command.command))
 					#self._platform_current_command.command = DONE_FOLD_CRANE
@@ -1194,6 +1220,7 @@ class RobospectPlatformMissionManager:
 		else:
 			if req.command.command == COMMAND_CANCEL:
 				self._cancel_command = True
+				rospy.loginfo('%s::_platform_command_cb: CANCEL command received', self.node_name)
 				return "ok"
 			else:	
 				return "busy"
