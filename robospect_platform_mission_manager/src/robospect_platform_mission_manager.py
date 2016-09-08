@@ -37,6 +37,7 @@ import rospy
 import time, threading, copy
 
 from robotnik_msgs.msg import State
+from robotnik_msgs.srv import enable_disable
 from std_msgs.msg import String, Float64
 from robospect_msgs.msg import PlatformCommand, PlatformState, MissionState, PlatformResponse
 from robospect_msgs.msg import State as RobospectState
@@ -92,9 +93,12 @@ Z_DEFAULT_OFFSET = -0.4
 # timeout in secs
 DEFAULT_COMMAND_TIMEOUT = 120.0
 # Commands to send to the Robotnik Trajectory Control Node
-RT_TRAJ_EXE_SET_TIP_FIRST=0
-RT_TRAJ_EXE_UNSET_TIP_FIRST=1
+RT_TRAJ_EXE_SET_TIP_FIRST = 0
+RT_TRAJ_EXE_UNSET_TIP_FIRST = 1
+RT_TRAJ_EXE_SET_HEIGHT_FIRST = 2
 CRANE_VIBRATION_DELAY = 7.0
+
+CRANE_CAUTION_HEIGHT = 4.0
 
 # Client based on ActionServer to send goals to the purepursuit node
 class PurePursuitClient():
@@ -380,6 +384,7 @@ class RobospectPlatformMissionManager:
 		self._crack_approach_crane_frame_id = args['crack_approach_crane_frame_id']
 		self._traj_exec_actions_name = args['traj_exec_actions_name']
 		self._avoid_crane_movement = args['avoid_crane_movement']
+		self._laser_assembler_service_name = args['laser_assembler_service_name']
 		
 		if self._command_advance_speed > self._command_advance_max_speed:
 			self._command_advance_speed = self._command_advance_max_speed
@@ -498,6 +503,9 @@ class RobospectPlatformMissionManager:
 		# Service Clients
 		# Service to set the order of joint movements of the crane
 		self._rt_traj_exe_actions_service_client = rospy.ServiceProxy(self._traj_exec_actions_name, TrajExecActions)
+		# Activates/Deactivates the point cloud assembly
+		self._laser_assembler_service_client = rospy.ServiceProxy(self._laser_assembler_service_name, enable_disable)
+		
 		#rospy.loginfo('rosSetup: Connecting to service %s'%self._traj_exec_actions_name )
 		
 		# ret = self.service_client.call(ServiceMsg)
@@ -816,6 +824,10 @@ class RobospectPlatformMissionManager:
 			# ADVANCE
 			if self._platform_current_command.command == COMMAND_ADVANCE:
 				goal_list = []
+				# activating laser assembly
+				ret = self._laser_assembler_service_client.call(True)
+				if not ret:
+					rospy.logerr('%s::readyState: Error sending activating laser assembler', self.node_name)
 				
 				if self._relative_navigation:
 					goal_list.append(goal(pose = Pose2D(self._platform_state.vehicle_x + self._platform_current_command.variables[0], self._platform_state.vehicle_y, 0.0), speed = self._command_advance_speed )) 
@@ -825,9 +837,11 @@ class RobospectPlatformMissionManager:
 				if self._base_move_client.goTo(goal_list) == 0:
 					self._command_init_time = rospy.Time.now()
 					self.command_state = COMMAND_STATE_WAITING
+					rospy.sleep(2)
 				else:
 					rospy.logerr('%s::readyState: Error sending command to the platfom', self.node_name)
-					#
+					# deactivating laser assembly
+					self._laser_assembler_service_client.call(False)
 					self._command_result = FAIL_ADVANCE
 					self.command_state = COMMAND_STATE_ENDED
 			
@@ -838,7 +852,11 @@ class RobospectPlatformMissionManager:
 				if traj_planner_state.state.state == State.STANDBY_STATE and traj_planner_state.goal_state == 'IDLE':
 					# Setting the order of joints movement
 					action = TrajExecActions()
-					action.action = RT_TRAJ_EXE_SET_TIP_FIRST
+					
+					if self._isCraneTooHeight():
+						action.action = RT_TRAJ_EXE_SET_HEIGHT_FIRST
+					else:
+						action.action = RT_TRAJ_EXE_SET_TIP_FIRST
 					ret = self._rt_traj_exe_actions_service_client.call(action.action)
 					
 					if not ret:
@@ -867,34 +885,7 @@ class RobospectPlatformMissionManager:
 						rospy.logerr('%s::readyState: error transforming crack point', self.node_name)
 						return
 					
-					# Applies offset to enable the arm operation close to the crack
-					#crack_approach_arm_point.point.x += self._point_offset.x
-					#crack_approach_arm_point.point.y += self._point_offset.y
-					#crack_approach_arm_point.point.z += self._point_offset.z
 					
-					
-					"""try:
-						t = self._transform_listener.getLatestCommonTime(self._arm_frame_id, self._crane_tip_frame_id)
-						position, quaternion = self._transform_listener.lookupTransform(self._arm_frame_id, self._crane_tip_frame_id, t)
-						
-						# Applies the transformation between arm_base_link and crane_tip_link
-						crack_approach_crane_point.point.x = crack_approach_arm_point.point.x + position[0]
-						crack_approach_crane_point.point.y = crack_approach_arm_point.point.y + position[1]
-						crack_approach_crane_point.point.z = crack_approach_arm_point.point.z + position[2]
-						crack_approach_crane_point.header.frame_id = self._arm_frame_id
-							
-					except (tfException, ConnectivityException, LookupException, ExtrapolationException) as e:
-						rospy.logerr('%s::readyState: %s'%(self.node_name, e))
-						return 
-					
-					
-					# transform the point into crane coordinates, ready to send to the controller
-					ret, crack_approach_crane_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_crane_point), frame_id = self._crane_tip_frame_id)
-					
-					if ret:
-						rospy.logerr('%s::readyState: error transforming crack point', self.node_name)
-						return
-					"""
 					# Publish the points related to base frame
 					#ret, self._crack_point = self._transform_point_to_frame(point = copy.deepcopy(crack_point), frame_id = self._base_frame_id) 
 					#ret, self._crack_approach_arm_point = self._transform_point_to_frame(point = copy.deepcopy(crack_approach_arm_point), frame_id = self._base_frame_id)  
@@ -943,7 +934,12 @@ class RobospectPlatformMissionManager:
 					# Setting the order of joints movement
 					
 					action = TrajExecActions()
-					action.action = RT_TRAJ_EXE_UNSET_TIP_FIRST
+					
+					if self._isCraneTooHeight():
+						action.action = RT_TRAJ_EXE_SET_HEIGHT_FIRST
+					else:
+						action.action = RT_TRAJ_EXE_UNSET_TIP_FIRST
+						
 					ret = self._rt_traj_exe_actions_service_client.call(action.action)
 					if not ret:
 						rospy.logerr('%s::readyState: error communicating with rt_traj_exec', self.node_name)
@@ -957,7 +953,7 @@ class RobospectPlatformMissionManager:
 				else:
 					self.command_state = COMMAND_STATE_ENDED
 					rospy.loginfo('%s::readyState: Trajectory planner not ready for a new command (%s-%s)', self.node_name, traj_planner_state.state.state_description,traj_planner_state.goal_state)
-					self._command_result = FAIL_MOVE_CRANE
+					self._command_result = FAIL_FOLD_CRANE
 			
 			# PAN-TILT		
 			elif self._platform_current_command.command == COMMAND_PANTILT:
@@ -994,6 +990,8 @@ class RobospectPlatformMissionManager:
 					self.command_state = COMMAND_STATE_ENDED
 					#self._platform_current_command.command = DONE_ADVANCE
 					self._command_result = DONE_ADVANCE
+					# deactivating laser assembly
+					self._laser_assembler_service_client.call(False)
 				# Cancel requested
 				elif self._cancel_command:
 					rospy.loginfo('%s::readyState: cancelling command %s'%(self.node_name,self._platform_current_command.command))
@@ -1001,7 +999,8 @@ class RobospectPlatformMissionManager:
 					self.command_state = COMMAND_STATE_ENDED
 					#self._platform_current_command.command = FAIL_ADVANCE
 					self._command_result = FAIL_ADVANCE
-					
+					# deactivating laser assembly
+					self._laser_assembler_service_client.call(False)
 				
 			# MOVE CRANE
 			elif self._platform_current_command.command == COMMAND_MOVE_CRANE:
@@ -1094,6 +1093,27 @@ class RobospectPlatformMissionManager:
 		return
 		
 	
+	def _isCraneTooHeight(self):
+		
+		point = PointStamped()
+					
+		point.point.x = 0
+		point.point.y = 0
+		point.point.z = 0
+		
+		point.header.frame_id = 'arm_link'
+		
+		ret, new_point = self._transform_point_to_frame(point = copy.deepcopy(point), frame_id = 'base_footprint')
+		
+		if abs(new_point.point.z) >= CRANE_CAUTION_HEIGHT:
+			rospy.logwarn('%s::_isCraneTooHeight: Crane is on high height %lf'%(self.node_name, abs(new_point.point.z)))
+			return True
+			
+		
+		return False
+		
+		
+		
 	def shutdownState(self):
 		'''
 			Actions performed in shutdown state 
@@ -1470,7 +1490,8 @@ def main():
 	  'pan_command_topic': '/pan_controller/command',
 	  'tilt_command_topic': '/tilt_controller/command',
 	  'pan_state_topic': '/tilt_controller/state',
-	  'tilt_state_topic': '/tilt_controller/state'
+	  'tilt_state_topic': '/tilt_controller/state',
+	  'laser_assembler_service_name': '/robospect_laser_assembler_node/publish_point_cloud'
 	}
 	
 	args = {}
