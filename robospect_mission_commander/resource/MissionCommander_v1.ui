@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>991</width>
-    <height>341</height>
+    <width>1035</width>
+    <height>332</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Send Mission</string>
+    <string>Send Command Mission</string>
    </property>
   </widget>
   <widget class="QLabel" name="label">
@@ -70,7 +70,7 @@
     <rect>
      <x>300</x>
      <y>10</y>
-     <width>671</width>
+     <width>731</width>
      <height>321</height>
     </rect>
    </property>
@@ -98,7 +98,7 @@
      <rect>
       <x>60</x>
       <y>30</y>
-      <width>551</width>
+      <width>361</width>
       <height>27</height>
      </rect>
     </property>
@@ -114,12 +114,12 @@
      <rect>
       <x>10</x>
       <y>60</y>
-      <width>661</width>
+      <width>591</width>
       <height>241</height>
      </rect>
     </property>
     <property name="currentIndex">
-     <number>6</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="tab_vehicle">
      <attribute name="title">
@@ -693,138 +693,6 @@ Command</string>
        <bool>true</bool>
       </property>
      </widget>
-     <widget class="QLabel" name="label_platform_controller_state">
-      <property name="geometry">
-       <rect>
-        <x>580</x>
-        <y>10</y>
-        <width>31</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>1</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_platform_navigation_planner_state">
-      <property name="geometry">
-       <rect>
-        <x>580</x>
-        <y>60</y>
-        <width>31</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>2</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_platform_localization_state">
-      <property name="geometry">
-       <rect>
-        <x>580</x>
-        <y>110</y>
-        <width>31</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>3</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_platform_controller_state_2">
-      <property name="geometry">
-       <rect>
-        <x>570</x>
-        <y>30</y>
-        <width>51</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>7</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>Controller</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_platform_controller_state_3">
-      <property name="geometry">
-       <rect>
-        <x>570</x>
-        <y>80</y>
-        <width>61</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>7</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>Navigation</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_platform_controller_state_4">
-      <property name="geometry">
-       <rect>
-        <x>570</x>
-        <y>130</y>
-        <width>61</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>7</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>Localization</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_platform_trajectory_planner_state">
-      <property name="geometry">
-       <rect>
-        <x>580</x>
-        <y>160</y>
-        <width>31</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>4</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_platform_controller_state_5">
-      <property name="geometry">
-       <rect>
-        <x>570</x>
-        <y>180</y>
-        <width>61</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>7</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>Trajectories</string>
-      </property>
-     </widget>
     </widget>
     <widget class="QWidget" name="tab_arm">
      <attribute name="title">
@@ -862,7 +730,7 @@ Command</string>
      <widget class="QLabel" name="label_27">
       <property name="geometry">
        <rect>
-        <x>270</x>
+        <x>230</x>
         <y>110</y>
         <width>16</width>
         <height>17</height>
@@ -875,7 +743,7 @@ Command</string>
      <widget class="QLabel" name="label_28">
       <property name="geometry">
        <rect>
-        <x>270</x>
+        <x>230</x>
         <y>50</y>
         <width>21</width>
         <height>17</height>
@@ -888,7 +756,7 @@ Command</string>
      <widget class="QLabel" name="label_29">
       <property name="geometry">
        <rect>
-        <x>270</x>
+        <x>230</x>
         <y>140</y>
         <width>16</width>
         <height>17</height>
@@ -901,7 +769,7 @@ Command</string>
      <widget class="QLabel" name="label_30">
       <property name="geometry">
        <rect>
-        <x>360</x>
+        <x>320</x>
         <y>80</y>
         <width>21</width>
         <height>17</height>
@@ -914,7 +782,7 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_arm_j2">
       <property name="geometry">
        <rect>
-        <x>290</x>
+        <x>250</x>
         <y>80</y>
         <width>61</width>
         <height>27</height>
@@ -927,7 +795,7 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_arm_j5">
       <property name="geometry">
        <rect>
-        <x>380</x>
+        <x>340</x>
         <y>50</y>
         <width>61</width>
         <height>27</height>
@@ -943,7 +811,7 @@ Command</string>
      <widget class="QLabel" name="label_31">
       <property name="geometry">
        <rect>
-        <x>360</x>
+        <x>320</x>
         <y>50</y>
         <width>21</width>
         <height>17</height>
@@ -956,7 +824,7 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_arm_j6">
       <property name="geometry">
        <rect>
-        <x>380</x>
+        <x>340</x>
         <y>80</y>
         <width>61</width>
         <height>27</height>
@@ -969,7 +837,7 @@ Command</string>
      <widget class="QLabel" name="label_32">
       <property name="geometry">
        <rect>
-        <x>270</x>
+        <x>230</x>
         <y>80</y>
         <width>21</width>
         <height>17</height>
@@ -982,7 +850,7 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_arm_j3">
       <property name="geometry">
        <rect>
-        <x>290</x>
+        <x>250</x>
         <y>110</y>
         <width>61</width>
         <height>27</height>
@@ -995,7 +863,7 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_arm_j1">
       <property name="geometry">
        <rect>
-        <x>290</x>
+        <x>250</x>
         <y>50</y>
         <width>61</width>
         <height>27</height>
@@ -1011,7 +879,7 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_arm_j4">
       <property name="geometry">
        <rect>
-        <x>290</x>
+        <x>250</x>
         <y>140</y>
         <width>61</width>
         <height>27</height>
@@ -1024,14 +892,14 @@ Command</string>
      <widget class="QLabel" name="label_33">
       <property name="geometry">
        <rect>
-        <x>120</x>
+        <x>110</x>
         <y>80</y>
-        <width>21</width>
-        <height>17</height>
+        <width>41</width>
+        <height>20</height>
        </rect>
       </property>
       <property name="text">
-       <string>q2</string>
+       <string>pitch</string>
       </property>
      </widget>
      <widget class="QLineEdit" name="lineEdit_arm_q2">
@@ -1118,14 +986,14 @@ Command</string>
      <widget class="QLabel" name="label_36">
       <property name="geometry">
        <rect>
-        <x>120</x>
+        <x>110</x>
         <y>50</y>
-        <width>21</width>
+        <width>31</width>
         <height>17</height>
        </rect>
       </property>
       <property name="text">
-       <string>q1</string>
+       <string>yaw</string>
       </property>
      </widget>
      <widget class="QLineEdit" name="lineEdit_arm_y">
@@ -1144,14 +1012,14 @@ Command</string>
      <widget class="QLabel" name="label_37">
       <property name="geometry">
        <rect>
-        <x>120</x>
+        <x>110</x>
         <y>110</y>
-        <width>16</width>
-        <height>17</height>
+        <width>41</width>
+        <height>20</height>
        </rect>
       </property>
       <property name="text">
-       <string>q3</string>
+       <string>roll</string>
       </property>
      </widget>
      <widget class="QLineEdit" name="lineEdit_arm_q1">
@@ -1170,19 +1038,6 @@ Command</string>
        <bool>true</bool>
       </property>
      </widget>
-     <widget class="QLabel" name="label_38">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>140</y>
-        <width>16</width>
-        <height>17</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>q4</string>
-      </property>
-     </widget>
      <widget class="QLabel" name="label_39">
       <property name="geometry">
        <rect>
@@ -1196,17 +1051,175 @@ Command</string>
        <string>x</string>
       </property>
      </widget>
-     <widget class="QLineEdit" name="lineEdit_arm_q4">
+     <widget class="QPushButton" name="pushButton_stop_teleop">
       <property name="geometry">
        <rect>
-        <x>150</x>
-        <y>140</y>
+        <x>450</x>
+        <y>150</y>
+        <width>98</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Stop Teleop</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_arm_j7">
+      <property name="geometry">
+       <rect>
+        <x>340</x>
+        <y>110</y>
         <width>61</width>
         <height>27</height>
        </rect>
       </property>
       <property name="readOnly">
        <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_83">
+      <property name="geometry">
+       <rect>
+        <x>320</x>
+        <y>110</y>
+        <width>21</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>j7</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_sw1_state">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>30</y>
+        <width>31</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>10</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_platform_controller_state_10">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>50</y>
+        <width>41</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>SW1</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_sw2_state">
+      <property name="geometry">
+       <rect>
+        <x>510</x>
+        <y>30</y>
+        <width>31</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>11</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_platform_controller_state_11">
+      <property name="geometry">
+       <rect>
+        <x>510</x>
+        <y>50</y>
+        <width>41</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>SW2</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_platform_controller_state_12">
+      <property name="geometry">
+       <rect>
+        <x>510</x>
+        <y>100</y>
+        <width>41</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>SW4</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_sw3_state">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>80</y>
+        <width>31</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>12</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_platform_controller_state_13">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>100</y>
+        <width>41</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>SW3</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_sw4_state">
+      <property name="geometry">
+       <rect>
+        <x>510</x>
+        <y>80</y>
+        <width>31</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>13</string>
       </property>
      </widget>
     </widget>
@@ -1549,7 +1562,7 @@ Command</string>
     </widget>
     <widget class="QWidget" name="tab">
      <attribute name="title">
-      <string>Ultrasounds</string>
+      <string>US</string>
      </attribute>
      <widget class="QLineEdit" name="lineEdit_ultrasounds_state">
       <property name="enabled">
@@ -1646,8 +1659,8 @@ Command</string>
      <widget class="QLabel" name="label_54">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>20</y>
+        <x>10</x>
+        <y>50</y>
         <width>61</width>
         <height>20</height>
        </rect>
@@ -1659,8 +1672,8 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_pan">
       <property name="geometry">
        <rect>
-        <x>90</x>
-        <y>20</y>
+        <x>80</x>
+        <y>50</y>
         <width>61</width>
         <height>27</height>
        </rect>
@@ -1675,8 +1688,8 @@ Command</string>
      <widget class="QLineEdit" name="lineEdit_tilt">
       <property name="geometry">
        <rect>
-        <x>90</x>
-        <y>50</y>
+        <x>80</x>
+        <y>80</y>
         <width>61</width>
         <height>27</height>
        </rect>
@@ -1691,8 +1704,8 @@ Command</string>
      <widget class="QLabel" name="label_55">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>50</y>
+        <x>10</x>
+        <y>80</y>
         <width>61</width>
         <height>20</height>
        </rect>
@@ -1701,71 +1714,408 @@ Command</string>
        <string>tilt_joint</string>
       </property>
      </widget>
-     <widget class="QLabel" name="label_pantilt_state_2">
+     <widget class="QDoubleSpinBox" name="doubleSpinBox_set_pan">
       <property name="geometry">
        <rect>
-        <x>580</x>
-        <y>30</y>
-        <width>51</width>
-        <height>31</height>
+        <x>160</x>
+        <y>50</y>
+        <width>67</width>
+        <height>27</height>
        </rect>
       </property>
-      <property name="font">
-       <font>
-        <pointsize>7</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
+      <property name="minimum">
+       <double>-3.000000000000000</double>
       </property>
-      <property name="text">
-       <string>Pan</string>
+      <property name="maximum">
+       <double>3.940000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.050000000000000</double>
       </property>
      </widget>
-     <widget class="QLabel" name="label_pantilt_state_3">
+     <widget class="QDoubleSpinBox" name="doubleSpinBox_set_tilt">
       <property name="geometry">
        <rect>
-        <x>580</x>
+        <x>160</x>
         <y>80</y>
-        <width>51</width>
-        <height>31</height>
+        <width>67</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="minimum">
+       <double>-0.800000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>1.800000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.050000000000000</double>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_70">
+      <property name="geometry">
+       <rect>
+        <x>90</x>
+        <y>20</y>
+        <width>61</width>
+        <height>20</height>
        </rect>
       </property>
       <property name="font">
        <font>
-        <pointsize>7</pointsize>
+        <pointsize>8</pointsize>
         <weight>75</weight>
         <bold>true</bold>
+        <underline>true</underline>
        </font>
       </property>
       <property name="text">
-       <string>Tilt</string>
+       <string>current</string>
       </property>
      </widget>
-     <widget class="QLabel" name="label_pan_state">
+     <widget class="QLabel" name="label_71">
       <property name="geometry">
        <rect>
-        <x>580</x>
+        <x>170</x>
+        <y>20</y>
+        <width>61</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>8</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+        <underline>true</underline>
+       </font>
+      </property>
+      <property name="text">
+       <string>desired</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_set_pantilt">
+      <property name="geometry">
+       <rect>
+        <x>77</x>
+        <y>120</y>
+        <width>151</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Set Pan&amp;Tilt</string>
+      </property>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_4">
+      <property name="geometry">
+       <rect>
+        <x>260</x>
         <y>10</y>
-        <width>31</width>
-        <height>31</height>
+        <width>161</width>
+        <height>191</height>
        </rect>
       </property>
-      <property name="text">
-       <string>6</string>
+      <property name="title">
+       <string>Pan Motor State</string>
       </property>
+      <widget class="QLabel" name="label_72">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>40</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Temp</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_73">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>70</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Velocity</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_74">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>100</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Load</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_75">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>160</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Moving</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_pan_motor_temp">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>40</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_pan_motor_vel">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>70</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_pan_motor_load">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>100</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_pan_motor_moving">
+       <property name="geometry">
+        <rect>
+         <x>80</x>
+         <y>160</y>
+         <width>31</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>11</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_76">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>130</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Error</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_pan_motor_error">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>130</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
      </widget>
-     <widget class="QLabel" name="label_tilt_state">
+     <widget class="QGroupBox" name="groupBox_5">
       <property name="geometry">
        <rect>
-        <x>580</x>
-        <y>60</y>
-        <width>31</width>
-        <height>31</height>
+        <x>430</x>
+        <y>10</y>
+        <width>151</width>
+        <height>191</height>
        </rect>
       </property>
-      <property name="text">
-       <string>7</string>
+      <property name="title">
+       <string>Tilt Motor State</string>
       </property>
+      <widget class="QLabel" name="label_77">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>40</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Temp</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_78">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>70</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Velocity</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_79">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>100</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Load</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_80">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>160</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Moving</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_tilt_motor_temp">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>40</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_tilt_motor_vel">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>70</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_tilt_motor_load">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>100</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_tilt_motor_moving">
+       <property name="geometry">
+        <rect>
+         <x>80</x>
+         <y>160</y>
+         <width>31</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>12</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_81">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>130</y>
+         <width>61</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Error</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit_tilt_motor_error">
+       <property name="geometry">
+        <rect>
+         <x>70</x>
+         <y>130</y>
+         <width>61</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_3">
@@ -1775,9 +2125,9 @@ Command</string>
      <widget class="QPushButton" name="pushButton_initialize_platform">
       <property name="geometry">
        <rect>
-        <x>470</x>
-        <y>20</y>
-        <width>171</width>
+        <x>20</x>
+        <y>60</y>
+        <width>131</width>
         <height>41</height>
        </rect>
       </property>
@@ -1788,35 +2138,35 @@ Command</string>
      <widget class="QPushButton" name="pushButton_reset_steering_encoder">
       <property name="geometry">
        <rect>
-        <x>470</x>
-        <y>70</y>
-        <width>171</width>
+        <x>20</x>
+        <y>110</y>
+        <width>131</width>
         <height>41</height>
        </rect>
       </property>
       <property name="text">
-       <string>Reset Steering Encoder</string>
+       <string>Reset Steering</string>
       </property>
      </widget>
      <widget class="QPushButton" name="pushButton_set_control_mode">
       <property name="geometry">
        <rect>
-        <x>470</x>
+        <x>450</x>
         <y>120</y>
-        <width>171</width>
+        <width>131</width>
         <height>41</height>
        </rect>
       </property>
       <property name="text">
-       <string>Set Control Mode</string>
+       <string>Control Mode</string>
       </property>
      </widget>
      <widget class="QComboBox" name="comboBox_control_mode">
       <property name="geometry">
        <rect>
-        <x>470</x>
+        <x>450</x>
         <y>170</y>
-        <width>171</width>
+        <width>131</width>
         <height>27</height>
        </rect>
       </property>
@@ -1856,9 +2206,9 @@ Command</string>
       </property>
       <property name="geometry">
        <rect>
-        <x>270</x>
+        <x>260</x>
         <y>20</y>
-        <width>161</width>
+        <width>111</width>
         <height>27</height>
        </rect>
       </property>
@@ -1869,7 +2219,7 @@ Command</string>
      <widget class="QLabel" name="label_57">
       <property name="geometry">
        <rect>
-        <x>220</x>
+        <x>210</x>
         <y>20</y>
         <width>41</width>
         <height>17</height>
@@ -1879,297 +2229,518 @@ Command</string>
        <string>Mode</string>
       </property>
      </widget>
-     <widget class="QGroupBox" name="groupBox_4">
+     <widget class="QPushButton" name="pushButton_fold_crane">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>50</y>
-        <width>441</width>
-        <height>151</height>
+        <x>170</x>
+        <y>60</y>
+        <width>131</width>
+        <height>41</height>
        </rect>
       </property>
-      <property name="title">
-       <string>Pad</string>
+      <property name="text">
+       <string>FoldCrane</string>
       </property>
-      <widget class="QLabel" name="label_platform_controller_state_6">
-       <property name="geometry">
-        <rect>
-         <x>380</x>
-         <y>40</y>
-         <width>51</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>7</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Pad</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_pad_state">
-       <property name="geometry">
-        <rect>
-         <x>390</x>
-         <y>20</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>8</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_58">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>60</y>
-         <width>91</width>
-         <height>17</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>speed level </string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="lineEdit_base_x_2">
-       <property name="geometry">
-        <rect>
-         <x>100</x>
-         <y>60</y>
-         <width>61</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="lineEdit_base_x_3">
-       <property name="geometry">
-        <rect>
-         <x>100</x>
-         <y>90</y>
-         <width>61</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_59">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>90</y>
-         <width>91</width>
-         <height>17</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>speed</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="lineEdit_base_x_4">
-       <property name="geometry">
-        <rect>
-         <x>100</x>
-         <y>120</y>
-         <width>61</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_60">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>120</y>
-         <width>91</width>
-         <height>17</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>position</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="lineEdit_base_x_5">
-       <property name="geometry">
-        <rect>
-         <x>280</x>
-         <y>60</y>
-         <width>61</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_61">
-       <property name="geometry">
-        <rect>
-         <x>190</x>
-         <y>60</y>
-         <width>91</width>
-         <height>17</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>joint</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="lineEdit_base_x_6">
-       <property name="geometry">
-        <rect>
-         <x>280</x>
-         <y>90</y>
-         <width>61</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_62">
-       <property name="geometry">
-        <rect>
-         <x>190</x>
-         <y>90</y>
-         <width>91</width>
-         <height>17</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>speed level</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="lineEdit_base_x_7">
-       <property name="geometry">
-        <rect>
-         <x>280</x>
-         <y>120</y>
-         <width>61</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_63">
-       <property name="geometry">
-        <rect>
-         <x>190</x>
-         <y>120</y>
-         <width>91</width>
-         <height>17</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>joint speed</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_pad_state_2">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>20</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>9</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_platform_controller_state_7">
-       <property name="geometry">
-        <rect>
-         <x>40</x>
-         <y>20</y>
-         <width>81</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>7</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Vehicle control</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_pad_state_3">
-       <property name="geometry">
-        <rect>
-         <x>190</x>
-         <y>20</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>10</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_platform_controller_state_8">
-       <property name="geometry">
-        <rect>
-         <x>220</x>
-         <y>20</y>
-         <width>81</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>7</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Crane control</string>
-       </property>
-      </widget>
+     </widget>
+     <widget class="QPushButton" name="pushButton_stop_vehicle_action">
+      <property name="geometry">
+       <rect>
+        <x>450</x>
+        <y>20</y>
+        <width>131</width>
+        <height>91</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>STOP</string>
+      </property>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_4">
      <attribute name="title">
-      <string>Localization</string>
+      <string>Nav200</string>
      </attribute>
+     <widget class="QLineEdit" name="lineEdit_nav200_state">
+      <property name="geometry">
+       <rect>
+        <x>70</x>
+        <y>20</y>
+        <width>141</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_64">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>20</y>
+        <width>41</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>State</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_nav200_x">
+      <property name="geometry">
+       <rect>
+        <x>70</x>
+        <y>50</y>
+        <width>61</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_nav200_y">
+      <property name="geometry">
+       <rect>
+        <x>70</x>
+        <y>80</y>
+        <width>61</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_nav200_theta">
+      <property name="geometry">
+       <rect>
+        <x>70</x>
+        <y>110</y>
+        <width>61</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_65">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>50</y>
+        <width>31</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>x</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_66">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>80</y>
+        <width>31</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>y</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_67">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>110</y>
+        <width>41</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>theta</string>
+      </property>
+     </widget>
+     <widget class="QProgressBar" name="progressBar_nav200_quality">
+      <property name="geometry">
+       <rect>
+        <x>320</x>
+        <y>20</y>
+        <width>201</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="value">
+       <number>24</number>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_68">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>20</y>
+        <width>51</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Quality</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_nav200_beacons">
+      <property name="geometry">
+       <rect>
+        <x>320</x>
+        <y>60</y>
+        <width>61</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_69">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>60</y>
+        <width>61</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Beacons</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_5">
+     <attribute name="title">
+      <string>Pad</string>
+     </attribute>
+     <widget class="QLabel" name="label_pad_crane_control">
+      <property name="geometry">
+       <rect>
+        <x>170</x>
+        <y>10</y>
+        <width>31</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>10</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_63">
+      <property name="geometry">
+       <rect>
+        <x>170</x>
+        <y>80</y>
+        <width>91</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>joint speed</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_pad_speed_level">
+      <property name="geometry">
+       <rect>
+        <x>100</x>
+        <y>50</y>
+        <width>51</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_60">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>110</y>
+        <width>91</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>steeing pos</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_pad_crane_speed_lvl">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>50</y>
+        <width>51</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_62">
+      <property name="geometry">
+       <rect>
+        <x>170</x>
+        <y>50</y>
+        <width>91</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>speed level</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_pad_steering_pos">
+      <property name="geometry">
+       <rect>
+        <x>100</x>
+        <y>110</y>
+        <width>51</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_pad_joint_speed">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>80</y>
+        <width>51</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_pad_vehicle_control">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>31</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>9</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_58">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>50</y>
+        <width>91</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>speed level </string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_pad_crane_joint">
+      <property name="geometry">
+       <rect>
+        <x>210</x>
+        <y>110</y>
+        <width>111</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>8</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_platform_controller_state_7">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>10</y>
+        <width>81</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Vehicle control</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_platform_controller_state_8">
+      <property name="geometry">
+       <rect>
+        <x>200</x>
+        <y>10</y>
+        <width>81</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>7</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Crane control</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_61">
+      <property name="geometry">
+       <rect>
+        <x>170</x>
+        <y>110</y>
+        <width>91</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>joint</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_pad_speed_lvl">
+      <property name="geometry">
+       <rect>
+        <x>100</x>
+        <y>80</y>
+        <width>51</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_59">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>80</y>
+        <width>91</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>speed</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_82">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>150</y>
+        <width>91</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Control mode</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_controller_mode_2">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>110</x>
+        <y>150</y>
+        <width>111</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QPlainTextEdit" name="plainTextEdit">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>330</x>
+        <y>10</y>
+        <width>241</width>
+        <height>181</height>
+       </rect>
+      </property>
+      <property name="plainText">
+       <string>R1                    Deadman vehicle
+L1                     Deadman Crane
+Triangle          + Vehicle speed
+X                       -  Vehicle speed
+Square            + Crane joint
+Circle               - Crane joint
+START             Set position mode
+SELECT           Set velocity mode</string>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QLabel" name="label_mission_state">
@@ -2190,6 +2761,299 @@ Command</string>
     </property>
     <property name="text">
      <string>Mission</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_trajectory_planner_state">
+    <property name="geometry">
+     <rect>
+      <x>620</x>
+      <y>230</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>4</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_controller_state_4">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>200</y>
+      <width>61</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Localization</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_controller_state_3">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>150</y>
+      <width>61</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Navigation</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_localization_state">
+    <property name="geometry">
+     <rect>
+      <x>620</x>
+      <y>180</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>3</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_controller_state_5">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>250</y>
+      <width>61</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Trajectories</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_navigation_planner_state">
+    <property name="geometry">
+     <rect>
+      <x>620</x>
+      <y>130</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>2</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_controller_state">
+    <property name="geometry">
+     <rect>
+      <x>620</x>
+      <y>80</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>1</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_controller_state_2">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>100</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Controller</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_tilt_state">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>130</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>7</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_pan_state">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>80</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>6</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_pantilt_state_3">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>150</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Tilt</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_pantilt_state_2">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>100</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Pan</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_pad_state">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>180</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>8</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_controller_state_6">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>200</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Pad</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_38">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>30</y>
+      <width>121</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Current waypoint</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit_current_waypoint">
+    <property name="geometry">
+     <rect>
+      <x>560</x>
+      <y>30</y>
+      <width>41</width>
+      <height>27</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_platform_controller_state_9">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>250</y>
+      <width>41</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>7</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Switches</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_switches_state">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>230</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>9</string>
     </property>
    </widget>
   </widget>

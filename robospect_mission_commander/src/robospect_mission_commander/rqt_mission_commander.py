@@ -44,10 +44,10 @@ from rqt_gui_py.plugin import Plugin
 import time
 import math
 
-from std_msgs.msg import String
-from robospect_msgs.msg import MissionCommand, MissionState
+from std_msgs.msg import String, Bool
+from robospect_msgs.msg import MissionCommand, MissionState, PlatformCommand, PadStatus
 from robospect_msgs.msg import State as RobospectState
-from robospect_msgs.srv import MissionCommandSrv, SetControlMode
+from robospect_msgs.srv import MissionCommandSrv, SetControlMode, PlatformCommandSrv
 from robotnik_msgs.msg import State
 from robospect_planner.msg import State as PlannerState
 from robotnik_trajectory_planner.msg import State as TrajectoryPlannerState
@@ -58,11 +58,13 @@ from std_srvs.srv import Empty
 from rospy.exceptions import ROSException
 
 from waypoints_marker import *
+from geometry_msgs.msg import Quaternion
 
 TIMEOUT_SERVICE = 2.0
 TIMEOUT_TOPIC = 2.0
-mission_commands = ['cracks', 'distance', 'threshold', 'stop', 'complete']
+mission_commands = ['cracks', 'distance', 'threshold', 'stop', 'complete', 'complete_offline']
 control_modes = ['POSITION', 'VELOCITY']
+NAV200_MIN_QUALITY = 30
 
 
 class MissionCommanderGUI(Plugin):
@@ -84,14 +86,25 @@ class MissionCommanderGUI(Plugin):
 		
 		pixmap_red_file = os.path.join(rp.get_path('robospect_mission_commander'), 'resource', 'red.png')
 		pixmap_green_file = os.path.join(rp.get_path('robospect_mission_commander'), 'resource', 'green.png')
+		pixmap_orange_file = os.path.join(rp.get_path('robospect_mission_commander'), 'resource', 'orange.png')
 		self._pixmap_red = QPixmap(pixmap_red_file)
 		self._pixmap_green = QPixmap(pixmap_green_file)
+		self._pixmap_orange = QPixmap(pixmap_orange_file)
 		
 		self._widget.label_platform_controller_state.setPixmap(self._pixmap_red) # Shows connection  state
 		self._widget.label_platform_navigation_planner_state.setPixmap(self._pixmap_red) # Shows connection  state
 		self._widget.label_platform_localization_state.setPixmap(self._pixmap_red) # Shows connection  state
 		self._widget.label_platform_trajectory_planner_state.setPixmap(self._pixmap_red) # Shows connection  state
 		self._widget.label_mission_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_pad_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_pad_vehicle_control.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_pad_crane_control.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_pan_motor_moving.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_switches_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_sw1_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_sw2_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_sw3_state.setPixmap(self._pixmap_red) # Shows connection  state
+		self._widget.label_sw4_state.setPixmap(self._pixmap_red) # Shows connection  state
 		
 		for command in mission_commands:
 			self._widget.comboBox_command.addItem(command)
@@ -117,7 +130,11 @@ class MissionCommanderGUI(Plugin):
 		self._widget.pushButton_reset_steering_encoder.clicked.connect(self._reset_steering_encoder_cb)
 		self._widget.pushButton_send.clicked.connect(self._send_comand_cb)
 		self._widget.pushButton_set_control_mode.clicked.connect(self._set_control_mode_cb)
-		self._update_timer_interface = 200 # Frequency to update values in the interface (ms)
+		self._widget.pushButton_fold_crane.clicked.connect(self._fold_crane_cb)
+		self._widget.pushButton_stop_vehicle_action.clicked.connect(self._stop_vehicle_cb)
+		self._widget.pushButton_set_pantilt.clicked.connect(self._set_pantilt_cb)
+		self._widget.pushButton_stop_teleop.clicked.connect(self._stop_teleop_cb)
+		self._update_timer_interface = 100 # Frequency to update values in the interface (ms)
 		
 		
 		self.waypoints_markers = PointPathManager('mission_waypoints', frame_id = '/map')
@@ -134,6 +151,7 @@ class MissionCommanderGUI(Plugin):
 		self._init_platform_service = rospy.get_param('/services/initialize_platform', default='/robospect_platform_controller/initialize_modbus_controller')
 		self._reset_steering_encoder_service = rospy.get_param('/services/reset_steering_encoder', default='/robospect_platform_controller/reset_steering_encoder')
 		self._set_control_mode_service = rospy.get_param('/services/set_control_mode', default='/robospect_platform_controller/set_control_mode')
+		self._platform_service = rospy.get_param('/services/platform_command', default='/platform_command_srv')
 		
 		self._mission_state_topic = rospy.get_param('/topics/mission_state', default='/mission_state')
 		self._platform_controller_state_topic = rospy.get_param('/topics/platform_controller_state', default='/robospect_platform_controller/state')
@@ -143,6 +161,9 @@ class MissionCommanderGUI(Plugin):
 		self._trajectory_control_state_topic = rospy.get_param('/topics/trajectory_control_state', default='/rt_traj_exec/state')
 		self._pan_state_topic = rospy.get_param('/topics/pan_state_topic', default='/pan_controller/state')
 		self._tilt_state_topic = rospy.get_param('/topics/tilt_state_topic', default='/tilt_controller/state')
+		self._pad_state_topic = rospy.get_param('/topics/pad_state_topic', default='/robospect_pad/state')
+		self._teleop_done_topic = rospy.get_param('/topics/teleop_done', default='/teleop_done')
+		self._contact_switches_topic = rospy.get_param('/topics/contact_switches_topic', default='/contact_switches_state')
 		#self._map_frame_id =  = rospy.get_param('/global_params/map_frame_id', default='/map')
 		#self._base_frame_id =  = rospy.get_param('/global_params/base_frame_id', default='/base_footprint')
 		
@@ -153,9 +174,11 @@ class MissionCommanderGUI(Plugin):
 		self._components_state['navigation_planner_state'] = {'state': State(), 'time': rospy.Time.now(), 'label': self._widget.label_platform_navigation_planner_state}
 		self._components_state['localization_state'] = {'state': Pose2D_nav(), 'time': rospy.Time.now(), 'label': self._widget.label_platform_localization_state}
 		self._components_state['trajectory_planner_state'] = {'state': State(), 'time': rospy.Time.now(), 'label': self._widget.label_platform_trajectory_planner_state}
-		self._components_state['pan_state'] = {'state': DynamixelState(), 'time': rospy.Time.now(), 'label': self._widget.label_pan_state}
-		self._components_state['tilt_state'] = {'state': DynamixelState(), 'time': rospy.Time.now(), 'label': self._widget.label_tilt_state}
+		self._components_state['pan_state'] = {'state': DynamixelState(), 'time': rospy.Time.now(), 'label': self._widget.label_pan_state, 'label_moving': self._widget.label_pan_motor_moving}
+		self._components_state['tilt_state'] = {'state': DynamixelState(), 'time': rospy.Time.now(), 'label': self._widget.label_tilt_state, 'label_moving': self._widget.label_tilt_motor_moving}
 		self._components_state['trajectory_control_state'] = {'state': State(), 'time': rospy.Time.now(), 'label': None}
+		self._components_state['pad_state'] = {'state': PadStatus(), 'time': rospy.Time.now(), 'label': self._widget.label_pad_state, 'label_vehicle': self._widget.label_pad_vehicle_control, 'label_crane': self._widget.label_pad_crane_control}
+		self._components_state['contact_switches_state'] = {'state': Quaternion(), 'time': rospy.Time.now(), 'label': self._widget.label_switches_state, 'label_sw1': self._widget.label_sw1_state, 'label_sw2': self._widget.label_sw2_state,'label_sw3': self._widget.label_sw3_state,'label_sw4': self._widget.label_sw4_state, }
 		
 		
 		# SUBSCRIPTIONS
@@ -167,11 +190,14 @@ class MissionCommanderGUI(Plugin):
 		self._trajectory_control_state_sub = rospy.Subscriber(self._trajectory_control_state_topic, State, self._trajectory_control_state_cb, queue_size=10)
 		self._pan_state_sub = rospy.Subscriber(self._pan_state_topic, DynamixelState, self._pan_state_cb, queue_size = 2)
 		self._tilt_state_sub = rospy.Subscriber(self._tilt_state_topic, DynamixelState, self._tilt_state_cb, queue_size = 2)
+		self._pad_state_sub = rospy.Subscriber(self._pad_state_topic, PadStatus, self._pad_state_cb, queue_size = 2)
+		self._contact_switch_state_sub = rospy.Subscriber(self._contact_switches_topic, Quaternion, self._contact_switches_state_cb, queue_size = 2)
 		
 		# transform listener to look for transformations
 		#self._transform_listener = TransformListener()
 		
 		# PUBLICATIONS
+		self.teleop_done_pub = rospy.Publisher(self._teleop_done_topic, Bool, queue_size=10) 
 		'''
 		if hasattr(self, ''):
 			self..unregister()
@@ -186,6 +212,7 @@ class MissionCommanderGUI(Plugin):
 		self._initialize_platform_service_client = rospy.ServiceProxy(self._init_platform_service, Empty)
 		self._reset_steering_encoder_service_client = rospy.ServiceProxy(self._reset_steering_encoder_service, Empty)
 		self._set_control_mode_service_client = rospy.ServiceProxy(self._set_control_mode_service, SetControlMode)
+		self._platform_command_service_client = rospy.ServiceProxy(self._platform_service, PlatformCommandSrv)
 		
 			
 			
@@ -213,7 +240,7 @@ class MissionCommanderGUI(Plugin):
 					
 		srv = MissionCommandSrv()
 		
-		if msg.command == 'complete':
+		if msg.command == 'complete' or msg.command == 'complete_offline':
 			waypoints = self.waypoints_markers.getMissionPoints()
 			
 			if len(waypoints) == 0:
@@ -232,6 +259,81 @@ class MissionCommanderGUI(Plugin):
 		except rospy.ServiceException,e: 
 			rospy.logerr('MissionCommanderGUI:_send_command_cb: %s',e)
 			QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+	
+	def _fold_crane_cb(self):
+		'''
+			Sends the foldCrane command to the platform
+		'''
+		msg = PlatformCommand()	
+		msg.command = 'foldCrane'
+		
+		ret = QMessageBox.question(self._widget, "Fold Crane", 'Do you want to fold the crane?', QMessageBox.Ok, QMessageBox.Cancel)
+		
+		if ret == QMessageBox.Ok:
+			try:
+				self._platform_command_service_client(msg)
+			except rospy.ROSInterruptException,e: 
+				rospy.logerr('MissionCommanderGUI:_fold_crane_cb: %s',e)
+				QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+			except rospy.ServiceException,e: 
+				rospy.logerr('MissionCommanderGUI:_fold_crane_cb: %s',e)
+				QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+	
+	
+	def _set_pantilt_cb(self):
+		'''
+			Sends the setPanTilt command to the platform
+		'''
+		msg = PlatformCommand()	
+		msg.command = 'setPanTilt'
+		
+		msg.variables = [self._widget.doubleSpinBox_set_pan.value(), self._widget.doubleSpinBox_set_tilt.value()]
+		#msg.variables = [0.0, 0.0]
+		
+		#print self._widget.doubleSpinBox_set_pan.value()
+		
+		try:
+			self._platform_command_service_client(msg)
+		except rospy.ROSInterruptException,e: 
+			rospy.logerr('MissionCommanderGUI:_set_pantilt_cb: %s',e)
+			QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+		except rospy.ServiceException,e: 
+			rospy.logerr('MissionCommanderGUI:_set_pantilt_cb: %s',e)
+			QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+			
+				
+	def _stop_vehicle_cb(self):
+		'''
+			Sends the stopcommand to the platform
+		'''
+		msg = PlatformCommand()	
+		msg.command = 'cancel'
+		
+		ret = QMessageBox.question(self._widget, "Stop Vehicle", 'Do you want to stop the vehicle?', QMessageBox.Ok, QMessageBox.Cancel)
+		
+		if ret == QMessageBox.Ok:
+			try:
+				self._platform_command_service_client(msg)
+			except rospy.ROSInterruptException,e: 
+				rospy.logerr('MissionCommanderGUI:_stop_vehicle_cb: %s',e)
+				QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+			except rospy.ServiceException,e: 
+				rospy.logerr('MissionCommanderGUI:_stop_vehicle_cb: %s',e)
+				QMessageBox.warning(self._widget, 'Error', 'Error sending the command')
+	
+				
+	def _stop_teleop_cb(self):
+		'''
+			Sends the stop teleop command IGC
+		'''
+		msg = Bool()	
+		msg.data = True
+		
+		ret = QMessageBox.question(self._widget, "Stop Arm Teleop", 'Do you want to stop the arm teleoperation?', QMessageBox.Ok, QMessageBox.Cancel)
+		
+		if ret == QMessageBox.Ok:
+			self.teleop_done_pub.publish(msg)
+	
 				
 				
 	def _set_control_mode_cb(self):
@@ -364,6 +466,24 @@ class MissionCommanderGUI(Plugin):
 		self._components_state['tilt_state']['state'] = msg
 		self._components_state['tilt_state']['time'] = rospy.Time.now()
 	
+	def _pad_state_cb(self, msg):
+		'''
+			Callback for PadStatus msg
+			@param msg: received message
+			@type msg: robospect_msgs/PadStatus
+		'''
+		self._components_state['pad_state']['state'] = msg
+		self._components_state['pad_state']['time'] = rospy.Time.now()
+	
+	def _contact_switches_state_cb(self, msg):
+		'''
+			Callback for Switches msg
+			@param msg: received message
+			@type msg: geometry_msgs/Quaternion
+		'''
+		self._components_state['contact_switches_state']['state'] = msg
+		self._components_state['contact_switches_state']['time'] = rospy.Time.now()
+	
 	def timerEvent(self, e):
 		'''
 			Method executed periodically
@@ -379,13 +499,20 @@ class MissionCommanderGUI(Plugin):
 			rospy.logerr('MissionCommanderGUI: %s'%e)
 		except RuntimeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_current_waypoint.setText('%s'%self._components_state['mission_state']['state'].current_point)
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		except RuntimeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
 		
 		
 		# Mission waypoints
 		try:
 			self._widget.lineEdit_waypoints.setText('%d'%self.waypoints_markers.getSizeMissionPoints())
 		except AttributeError,e:
-			rospy.logerr('MissionCommanderGUI: %s'%e)
+			pass
+			#rospy.logerr('MissionCommanderGUI: %s'%e)
 		
 		self.waypoints_markers.updateMarkers()
 		
@@ -513,12 +640,9 @@ class MissionCommanderGUI(Plugin):
 			self._widget.lineEdit_arm_q3.setText('%.3f'%self._components_state['mission_state']['state'].tip_q3)	# arm tip q3
 		except AttributeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
-		try:
-			self._widget.lineEdit_arm_q4.setText('%.3f'%self._components_state['mission_state']['state'].tip_q4)	# arm tip q4
-		except AttributeError,e:
-			rospy.logerr('MissionCommanderGUI: %s'%e)
 		
-		if len(self._components_state['mission_state']['state'].arm_joints) == 6:
+		
+		if len(self._components_state['mission_state']['state'].arm_joints) == 7:
 			
 			try:
 				self._widget.lineEdit_arm_j1.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[0])	#j1 arm
@@ -542,6 +666,10 @@ class MissionCommanderGUI(Plugin):
 				rospy.logerr('MissionCommanderGUI: %s'%e)
 			try:
 				self._widget.lineEdit_arm_j6.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[5])	#j6 arm
+			except AttributeError,e:
+				rospy.logerr('MissionCommanderGUI: %s'%e)
+			try:
+				self._widget.lineEdit_arm_j7.setText('%.3f'%self._components_state['mission_state']['state'].arm_joints[6])	#j7 arm
 			except AttributeError,e:
 				rospy.logerr('MissionCommanderGUI: %s'%e)
 			
@@ -609,14 +737,6 @@ class MissionCommanderGUI(Plugin):
 			rospy.logerr('MissionCommanderGUI: %s'%e)	
 			
 		
-		t_now = rospy.Time.now()
-		for component in self._components_state:
-			if self._components_state[component]['label']:
-				if (t_now - self._components_state[component]['time']).to_sec() > TIMEOUT_TOPIC:
-					self._components_state[component]['label'].setPixmap(self._pixmap_red)
-				else:
-					self._components_state[component]['label'].setPixmap(self._pixmap_green)
-		
 		# Pan-Tilt
 		try:
 			self._widget.lineEdit_pan.setText('%.3lf'%self._components_state['mission_state']['state'].vehicle_state.pan_angle)	
@@ -636,6 +756,167 @@ class MissionCommanderGUI(Plugin):
 			self._widget.lineEdit_controller_mode.setText(self._components_state['platform_controller_state']['state'].control_mode)	# mode
 		except AttributeError,e:
 			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
+		## Nav200
+		try:
+			self._widget.lineEdit_nav200_state.setText(self._components_state['localization_state']['state'].state)	# State
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		try:
+			self._widget.lineEdit_nav200_x.setText('%.3lf'%self._components_state['localization_state']['state'].x)	# x
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_nav200_y.setText('%.3lf'%self._components_state['localization_state']['state'].y)	# x
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_nav200_theta.setText('%.3lf'%self._components_state['localization_state']['state'].theta)	# x
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_nav200_beacons.setText('%d'%self._components_state['localization_state']['state'].refnumb)	# beacons
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			if self._components_state['localization_state']['state'].quality < 0:
+				self._widget.progressBar_nav200_quality.setValue(0)
+			else:	
+				self._widget.progressBar_nav200_quality.setValue(int(self._components_state['localization_state']['state'].quality))
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+		
+		## PAD
+		try:
+			self._widget.lineEdit_pad_speed_level.setText('%.3lf'%self._components_state['pad_state']['state'].vehicle_speed_level)	# speed level
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_pad_steering_pos.setText('%.3lf'%self._components_state['pad_state']['state'].desired_angular_position)	# steering pos
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_pad_speed_lvl.setText('%.3lf'%self._components_state['pad_state']['state'].desired_linear_speed)	# linear speed
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_pad_crane_joint.setText('%s'%self._components_state['pad_state']['state'].current_joint)	# current joint
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_controller_mode_2.setText('%s'%self._components_state['pad_state']['state'].platform_mode)	# current platform mode
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		
+		try:
+			self._widget.lineEdit_pad_crane_speed_lvl.setText('%.3lf'%self._components_state['pad_state']['state'].arm_speed_level)	# arm speed lvl
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_pad_joint_speed.setText('%.3lf'%self._components_state['pad_state']['state'].current_joint_speed)	# joint speed
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		
+		## PAN STATE
+		try:
+			self._widget.lineEdit_pan_motor_temp.setText('%.3lf'%self._components_state['pan_state']['state'].motor_temps[0])	# temp
+		except AttributeError,e:
+			pass
+			#rospy.logerr('MissionCommanderGUI: %s'%e)	
+		except IndexError,e:
+			pass
+			#rospy.logerr('MissionCommanderGUI: %s'%e)	
+			
+		try:
+			self._widget.lineEdit_pan_motor_vel.setText('%.3lf'%self._components_state['pan_state']['state'].velocity)	# velocity
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_pan_motor_load.setText('%.3lf'%self._components_state['pan_state']['state'].load)	# load
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_pan_motor_error.setText('%.3lf'%self._components_state['pan_state']['state'].error)	# error
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		
+		## TILT STATE
+		try:
+			self._widget.lineEdit_tilt_motor_temp.setText('%.3lf'%self._components_state['tilt_state']['state'].motor_temps[0])	# temp
+		except AttributeError,e:
+			pass
+			#rospy.logerr('MissionCommanderGUI: %s'%e)	
+		except IndexError,e:
+			pass
+			#rospy.logerr('MissionCommanderGUI: %s'%e)
+			
+		try:
+			self._widget.lineEdit_tilt_motor_vel.setText('%.3lf'%self._components_state['tilt_state']['state'].velocity)	# velocity
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)
+			
+		
+		try:
+			self._widget.lineEdit_tilt_motor_load.setText('%.3lf'%self._components_state['tilt_state']['state'].load)	# load
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		try:
+			self._widget.lineEdit_tilt_motor_error.setText('%.3lf'%self._components_state['tilt_state']['state'].error)	# error
+		except AttributeError,e:
+			rospy.logerr('MissionCommanderGUI: %s'%e)	
+		
+		## FLAGS status
+		t_now = rospy.Time.now()
+		for component in self._components_state:
+			if self._components_state[component]['label']:
+				if (t_now - self._components_state[component]['time']).to_sec() > TIMEOUT_TOPIC:
+					self._components_state[component]['label'].setPixmap(self._pixmap_red)
+				else:
+					if component == 'localization_state':
+						if self._components_state['localization_state']['state'].quality < NAV200_MIN_QUALITY:
+							self._components_state[component]['label'].setPixmap(self._pixmap_orange)
+						else:
+							self._components_state[component]['label'].setPixmap(self._pixmap_green)
+					else:
+						self._components_state[component]['label'].setPixmap(self._pixmap_green)
+						
+						if component == 'pad_state':
+							if self._components_state[component]['state'].deadman_active:
+								self._components_state[component]['label_vehicle'].setPixmap(self._pixmap_green)
+							else:
+								self._components_state[component]['label_vehicle'].setPixmap(self._pixmap_red)
+							
+							if self._components_state[component]['state'].arm_deadman_active:
+								self._components_state[component]['label_crane'].setPixmap(self._pixmap_green)
+							else:
+								self._components_state[component]['label_crane'].setPixmap(self._pixmap_red)
+						
+						if component == 'pan_state' or component == 'tilt_state':
+							if self._components_state[component]['state'].is_moving:
+								self._components_state[component]['label_moving'].setPixmap(self._pixmap_green)
+							else:
+								self._components_state[component]['label_moving'].setPixmap(self._pixmap_red)
+						
+						if component == 'contact_switches_state':
+							if self._components_state[component]['state'].x == 0:
+								self._components_state[component]['label_sw1'].setPixmap(self._pixmap_green)
+							else:
+								self._components_state[component]['label_sw1'].setPixmap(self._pixmap_red)
+							
+							if self._components_state[component]['state'].y == 0:
+								self._components_state[component]['label_sw2'].setPixmap(self._pixmap_green)
+							else:
+								self._components_state[component]['label_sw2'].setPixmap(self._pixmap_red)
+							
+							if self._components_state[component]['state'].z == 0:
+								self._components_state[component]['label_sw3'].setPixmap(self._pixmap_green)
+							else:
+								self._components_state[component]['label_sw3'].setPixmap(self._pixmap_red)
+							
+							if self._components_state[component]['state'].w == 0:
+								self._components_state[component]['label_sw4'].setPixmap(self._pixmap_green)
+							else:
+								self._components_state[component]['label_sw4'].setPixmap(self._pixmap_red)
 			
 		"""# Checks the ROS connection
 		t = time.time()

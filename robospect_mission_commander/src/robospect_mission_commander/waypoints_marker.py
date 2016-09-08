@@ -39,6 +39,7 @@ from std_srvs.srv import Empty
 
 from robospect_msgs.msg import MissionPoint
 
+DISTANCE_BETWEEN_POINTS = 1.0
 
 ## @brief Class to manage  the creation of a Waypoint base on InteractiveMarker
 class PointPath(InteractiveMarker):
@@ -98,10 +99,13 @@ class PointPath(InteractiveMarker):
 		#print feedback.marker_name + " is now at " + str(p.x) + ", " + str(p.y) + ", " + str(p.z)
 		#print '%s: %s'%(feedback.marker_name, self.description)
 		#self.description = self.description + '\n' + 'x= %lf, y= %lf'%(self.pose.position.x, self.pose.position.y)
+		#if not self.is_manager:
+		#	self.description = '%s->%s\nx=%.2lf, y=%.2lf'%(self.name, self.point_description, self.mission_point.point.x, self.mission_point.point.y)
+		self.updateDescription(self.mission_point.point.x, self.mission_point.point.y)
+		
+	def updateDescription(self, x, y):
 		if not self.is_manager:
-			self.description = '%s->%s\nx=%.2lf, y=%.2lf'%(self.name, self.point_description, self.mission_point.point.x, self.mission_point.point.y)
-		
-		
+			self.description = '%s->%s\nx=%.2lf, y=%.2lf'%(self.name, self.point_description, x, y)
 		
 
 
@@ -111,13 +115,16 @@ class PointPathManager(InteractiveMarkerServer):
 	def __init__(self, name, frame_id):
 		InteractiveMarkerServer.__init__(self, name)
 		self.list_of_points = []
-		self.initial_distance_between_points = 2.0
+		self.initial_distance_between_points = DISTANCE_BETWEEN_POINTS
 		self.frame_id = frame_id
 		self.counter_points = 0
-		self.mission_options = ['do_crack_detection', 'do_3D_scan', 'do_stereo_image', 'do_ultrasonic_measurements']
+		self.mission_options = ['do_crack_detection', 'do_3D_scan', 'do_stereo_image', 'do_ultrasonic_measurements', 'do_teleop_us']
 		self.mission_options_ids = {}
-		
-		
+		self.num_of_points_options = ['1', '2', '5', '10']
+		self.num_of_points_options_ids = {}
+		self.distance_between_points_options = ['1.0', '1.2', '1.4', '1.6']
+		self.distance_between_points_optionss_ids = {}
+		self.num_of_points_to_add = 1
 		# Menu handler to create a menu
 		self.menu_handler = MenuHandler()
 		
@@ -129,9 +136,32 @@ class PointPathManager(InteractiveMarkerServer):
 			
 		#h_first_entry = self.menu_handler.insert( "Waypoints" )
 		#entry = self.menu_handler.insert( "Create New", parent=h_first_entry, callback=self.newPointCB)
-		entry_new = self.menu_handler.insert( "Create new waypoint", callback=self.newPointCB)
-		entry = self.menu_handler.insert( "Delete last waypoint", callback=self.deletePointCB );
+		entry_new = self.menu_handler.insert( "Number of waypoints")
+		for i in self.num_of_points_options:
+			entry = self.menu_handler.insert( i, parent=entry_new, callback=self.setNumOfPointsCB )
+			if i == '1':
+				self.menu_handler.setCheckState( entry, MenuHandler.CHECKED)
+			else:
+				self.menu_handler.setCheckState( entry, MenuHandler.UNCHECKED)
+			self.num_of_points_options_ids[entry] = i
+		
+		
+		entry_new = self.menu_handler.insert( "Distance between waypoints")
+		for i in self.distance_between_points_options:
+			entry = self.menu_handler.insert( i, parent=entry_new, callback=self.setDistanceBetweenWaypointsCB )
+			if i == '1.0':
+				self.menu_handler.setCheckState( entry, MenuHandler.CHECKED)
+			else:
+				self.menu_handler.setCheckState( entry, MenuHandler.UNCHECKED)
+			self.distance_between_points_optionss_ids[entry] = i
+		
+		
+		
+		entry_new = self.menu_handler.insert( "Create new waypoint(s)", callback=self.newPointCB)
+		entry = self.menu_handler.insert( "Delete last waypoint(s)", callback=self.deleteLastPointCB );
+		entry = self.menu_handler.insert( "Delete first waypoint(s)", callback=self.deleteFirstPointCB );
 		entry = self.menu_handler.insert( "Delete all waypoints", callback=self.deleteAllPointsCB );
+		entry = self.menu_handler.insert( "Print waypoints", callback=self.printAllPointsCB );
 		
 		#entry = self.menu_handler.insert( "Create", parent=entry_new, callback=self.newPointCB)
 		
@@ -170,67 +200,126 @@ class PointPathManager(InteractiveMarkerServer):
 	
 	## @brief Creates a new PointPath and save it a list
 	def createNewPoint(self, speed = 0.2):
-		m_point = MissionPoint()
-		m_point.do_crack_detection = m_point.do_3D_scan = m_point.do_stereo_image = do_ultrasonic_measurements = False
 		
-		point_description = ''
-		for i in self.mission_options_ids:
-			if self.menu_handler.getCheckState( i ) == MenuHandler.CHECKED:
-				if self.mission_options_ids[i] == 'do_crack_detection':
-					m_point.do_crack_detection = True
-					point_description += ' crack'
-				elif self.mission_options_ids[i] == 'do_3D_scan':
-					m_point.do_3D_scan = True
-					point_description += ' 3D'
-				elif self.mission_options_ids[i] == 'do_stereo_image':
-					m_point.do_stereo_image = True
-					point_description += ' stereo'
-				elif self.mission_options_ids[i] == 'do_ultrasonic_measurements':
-					m_point.do_ultrasonic_measurements = True
-					point_description += ' us'
-				
-				
-		##print 'Creating new point %d'%(self.counter_points)
-		new_point = PointPath(self.frame_id, 'p%d'%(self.counter_points), 'p%d->%s'%(self.counter_points, point_description), speed = speed, mission_point = m_point, point_description = point_description)
-		
-		if len(self.list_of_points) > 1:
-			new_point.pose.position.x = self.list_of_points[self.counter_points-1].pose.position.x
-			new_point.pose.position.y = self.list_of_points[self.counter_points-1].pose.position.y
-		elif len(self.list_of_points) == 1:
-			new_point.pose.position.x = self.list_of_points[0].pose.position.x
-			new_point.pose.position.y = self.list_of_points[0].pose.position.y
-	
-		new_point.pose.position.x = new_point.pose.position.x  + self.initial_distance_between_points
+		for i in range(self.num_of_points_to_add):
+			m_point = MissionPoint()
+			m_point.do_crack_detection = m_point.do_3D_scan = m_point.do_stereo_image = m_point.do_ultrasonic_measurements = m_point.do_teleop_us = False
 			
+			point_description = ''
+			for i in self.mission_options_ids:
+				if self.menu_handler.getCheckState( i ) == MenuHandler.CHECKED:
+					if self.mission_options_ids[i] == 'do_crack_detection':
+						m_point.do_crack_detection = True
+						point_description += ' crack'
+					elif self.mission_options_ids[i] == 'do_3D_scan':
+						m_point.do_3D_scan = True
+						point_description += ' 3D'
+					elif self.mission_options_ids[i] == 'do_stereo_image':
+						m_point.do_stereo_image = True
+						point_description += ' stereo'
+					elif self.mission_options_ids[i] == 'do_ultrasonic_measurements':
+						m_point.do_ultrasonic_measurements = True
+						point_description += ' us'
+					elif self.mission_options_ids[i] == 'do_teleop_us':
+						m_point.do_teleop_us = True
+						point_description += ' tus'
+					
+					
+			##print 'Creating new point %d'%(self.counter_points)
+			new_point = PointPath(self.frame_id, 'p%d'%(self.counter_points), 'p%d->%s'%(self.counter_points, point_description), speed = speed, mission_point = m_point, point_description = point_description)
+			
+			if len(self.list_of_points) > 1:
+				new_point.pose.position.x = self.list_of_points[self.counter_points-1].pose.position.x
+				new_point.pose.position.y = self.list_of_points[self.counter_points-1].pose.position.y
+			elif len(self.list_of_points) == 1:
+				new_point.pose.position.x = self.list_of_points[0].pose.position.x
+				new_point.pose.position.y = self.list_of_points[0].pose.position.y
 		
-		#print 'Creating new point at position %.2lf, %.2lf, %.2lf'%(new_point.pose.position.x, new_point.pose.position.y, new_point.pose.position.z)
-		
-		self.list_of_points.append(new_point)
-		#dict_of_points[point_name] = new_point
-		self.insert(new_point, new_point.processFeedback)
-		self.menu_handler.apply( self, 'p%d'%(self.counter_points) )
-		self.applyChanges()
-		self.counter_points = self.counter_points + 1
+			new_point.pose.position.x = new_point.pose.position.x  + self.initial_distance_between_points
+			new_point.mission_point.point.x = new_point.pose.position.x
+				
+			new_point.updateDescription(new_point.pose.position.x, new_point.pose.position.y)
+			#print 'Creating new point at position %.2lf, %.2lf, %.2lf'%(new_point.pose.position.x, new_point.pose.position.y, new_point.pose.position.z)
+			
+			self.list_of_points.append(new_point)
+			#dict_of_points[point_name] = new_point
+			self.insert(new_point, new_point.processFeedback)
+			self.menu_handler.apply( self, 'p%d'%(self.counter_points) )
+			self.applyChanges()
+			self.counter_points = self.counter_points + 1
 		
 		#for i in self.list_of_points:
 		#	print 'Point %s: %.2lf, %.2lf, %.2lf'%(i.name, i.pose.position.x, i.pose.position.y, i.pose.position.z)
 			
 		return
 	
-	## @brief Callback called to create a new poing	
+	
+		
+	## @brief Callback called to create a new point	
 	def newPointCB(self, feedback):
 		#print 'newPointCB'
 		self.createNewPoint()
+	
+	## @brief Callback called to set the number of points added every time	
+	def setNumOfPointsCB(self, feedback):
+		
+		for entry in self.num_of_points_options_ids:
+			self.menu_handler.setCheckState( entry, MenuHandler.UNCHECKED )
+		
+		self.menu_handler.setCheckState( feedback.menu_entry_id, MenuHandler.CHECKED ) 
+		
+		self.num_of_points_to_add = int(self.num_of_points_options_ids[feedback.menu_entry_id])
+		
+		#print 'points = %d'%self.num_of_points_to_add
+	
+	
+	## @brief Callback called to set distance between points
+	def setDistanceBetweenWaypointsCB(self, feedback):
+		
+		for entry in self.distance_between_points_optionss_ids:
+			self.menu_handler.setCheckState( entry, MenuHandler.UNCHECKED )
+		
+		self.menu_handler.setCheckState( feedback.menu_entry_id, MenuHandler.CHECKED ) 
+		
+		self.initial_distance_between_points = float(self.distance_between_points_optionss_ids[feedback.menu_entry_id])
+		
+		#print 'points = %d'%self.num_of_points_to_add
 		
 	## @brief Callback called to create a new poing	
-	def deletePointCB(self, feedback):
-		if self.counter_points > 0:
-			 p = self.list_of_points.pop()
-			 self.counter_points = self.counter_points - 1
-			 self.erase(p.name)
-			 self.applyChanges()
+	def deleteLastPointCB(self, feedback):
+		for i in range(self.num_of_points_to_add):
+			if self.counter_points > 0:
+				 p = self.list_of_points.pop()
+				 self.counter_points = self.counter_points - 1
+				 self.erase(p.name)
+				 self.applyChanges()
+			else:
+				break
 			 
-		 #print 'deletePointCB'	
+		 #print 'deleteLastPointCB'	
+	
+	## @brief Callback called to create a new poing	
+	def deleteFirstPointCB(self, feedback):
+		
+		"""if self.num_of_points_to_add > self.counter_points:
+			self.deleteAllPoints()
+		else:
+			new_list = []
+			diff_length = self.counter_points - self.num_of_points_to_add
+			
+			for i in range(self.counter_points-diff_length):
+				new_list.append(self.list_of_points[i + diff_length])
+				self.erase(self.list_of_points[i].name)
+			
+			#print new_list
+			self.counter_points = self.counter_points - diff_length
+			self.list_of_points = new_list
+			#self.erase(p.name)
+			self.applyChanges()
+			
+		"""
+		pass
+		 #print 'deleteLastPointCB'	
 	
 	## @brief Function called to delete all the waypoints
 	def deleteAllPoints(self):
@@ -244,6 +333,10 @@ class PointPathManager(InteractiveMarkerServer):
 	## @brief Callback called to delete all the waypoints
 	def deleteAllPointsCB(self, feedback):
 		self.deleteAllPoints()
+	
+	## @brief Callback called to print all the waypoints
+	def printAllPointsCB(self, feedback):
+		print self.convertListOfPointPathIntoGoal()
 	
 	
 	## @brief Starts the route
